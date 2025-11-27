@@ -115,19 +115,46 @@ void HttpStreamEngine::play() {
   Serial.println("[HTTP] ▶ Play");
 }
 
+
+void HttpStreamEngine::close() {
+
+  // Graceful stop request
+  stream_running = false;
+
+  // Invalidate current session
+  g_play_session++;
+
+  // Mark URL inactive
+  g_url_open  = false;
+
+  // Mark playback stopped
+  g_isPlaying = false;
+
+  Serial.println("[HTTP] ⏹ Close (graceful)");
+}
+
+
 void HttpStreamEngine::stop() {
 
+  // Hard stop: abort everything immediately
   stream_running = false;
+  g_url_open     = false;
   g_isPlaying    = false;
+
+  // Kill any in-flight session
+  g_play_session++;
+
+  // Drop all buffered data immediately
   net_ring_clear();
 
-  Serial.println("[HTTP] ⏹ Stop");
+  Serial.println("[HTTP] ⏹ Stop (hard)");
 }
+
+
 
 // =======================================================
 // HTTP Producer Task (PATCHED TO MATCH ORIGINAL MAIN.CPP)
 // =======================================================
-
 void HttpStreamEngine::httpFillTask(void*) {
 
   HTTPClient http;
@@ -138,29 +165,37 @@ void HttpStreamEngine::httpFillTask(void*) {
   ID3v2Meta      id3m{};
 
   uint8_t tail6[6] = {0};
-  bool tail_valid  = false;
+  bool    tail_valid = false;
 
-  // ---------- DEBUG ----------
-  uint32_t dbg_pkts = 0;
-  uint32_t dbg_bytes = 0;
-  uint32_t dbg_last = 0;
-  // --------------------------
+  // ---- per-stream state ----
+  int64_t  content_len      = -1;
+  int64_t  bytes_seen       = 0;
+  int64_t  bytes_committed  = 0;
+  uint32_t stall_deadline   = 0;
+
+  constexpr uint32_t STALL_TIMEOUT_MS = 1200;
 
   for (;;) {
 
-    // 🔑 DO NOT SELF-SUSPEND (idle instead)
-    if (!stream_running || !g_open_url) {
+    // --------------------------------------------------
+    // Idle until a stream is requested
+    // --------------------------------------------------
+    if (!stream_running || !g_url_open) {
       vTaskDelay(10);
       continue;
     }
 
+    // ✅ Capture session ownership
     const uint32_t my_session = g_play_session;
 
+    // --------------------------------------------------
+    // Start new HTTP connection
+    // --------------------------------------------------
     http.end();
     sock.stop();
 
     if (!http.begin(sock, g_open_url)) {
-      vTaskDelay(100);
+      vTaskDelay(200);
       continue;
     }
 
@@ -171,21 +206,30 @@ void HttpStreamEngine::httpFillTask(void*) {
     int code = http.GET();
     if (code != HTTP_CODE_OK && code != HTTP_CODE_PARTIAL_CONTENT) {
       http.end();
-      vTaskDelay(200);
+      sock.stop();
+      vTaskDelay(500);
       continue;
     }
+
+    // ---- Reset per-stream counters ----
+    content_len     = http.getSize();   // -1 if chunked
+    bytes_seen      = 0;
+    bytes_committed = 0;
+    stall_deadline  = millis() + STALL_TIMEOUT_MS;
 
     id3v2_reset_collector(&id3c);
     id3v2_reset_meta(&id3m);
 
     SlotCodec session_tag = SLOT_UNKNOWN;
-    bool session_locked = false;
+    bool session_locked  = false;
     tail_valid = false;
 
-    int64_t bytes_seen = 0;
+    Serial.printf("[HTTP] Connected: %s (len=%lld)\n",
+                  g_open_url, (long long)content_len);
 
-    Serial.printf("[HTTP] Connected: %s\n", g_open_url);
-
+    // ==================================================
+    //                    STREAM LOOP
+    // ==================================================
     while (stream_running && g_play_session == my_session) {
 
       if (netBufFilled[netWrite]) {
@@ -193,30 +237,52 @@ void HttpStreamEngine::httpFillTask(void*) {
         continue;
       }
 
-      uint8_t* dst = netBuffers[netWrite];
-      int readn = sock.read(dst, MAX_CHUNK_SIZE);
-
-      // 🔑 IMPORTANT: zero read ≠ EOF
-      if (readn <= 0) {
-        vTaskDelay(2);
+      int avail = sock.available();
+      if (avail <= 0) {
+        if (!sock.connected() || millis() > stall_deadline) {
+          Serial.println("[HTTP] ⚠ Stall or disconnect");
+          break;
+        }
+        vTaskDelay(1);
         continue;
       }
 
-      size_t wrote = (size_t)readn;
-      bytes_seen += wrote;
+      int toRead = min(avail, MAX_CHUNK_SIZE);
+
+      // ✅ Clamp using RAW socket byte count
+      if (content_len > 0) {
+        int64_t remain = content_len - bytes_seen;
+        if (remain <= 0)
+          break;
+        if (toRead > (int)remain)
+          toRead = (int)remain;
+      }
+
+      uint8_t* dst = netBuffers[netWrite];
+
+      int readn = sock.read(dst, toRead);
+      if (readn <= 0) {
+        vTaskDelay(1);
+        continue;
+      }
+
+      bytes_seen += readn;
+      stall_deadline = millis() + STALL_TIMEOUT_MS;
 
       uint8_t* cur = dst;
-      size_t len   = wrote;
+      size_t   len = readn;
 
+      // ---------------- ID3 peel ----------------
       if (!session_locked && !id3m.header_found) {
-        id3v2_try_begin(cur, len, bytes_seen - len, MAX_CHUNK_SIZE, &id3c);
+        id3v2_try_begin(cur, len, bytes_seen - len,
+                        MAX_CHUNK_SIZE, &id3c);
         size_t taken = id3v2_consume(cur, len, &id3c, &id3m);
         cur += taken;
         len -= taken;
       }
 
-      SlotCodec tag = session_tag;
-      uint16_t offset = 0;
+      SlotCodec tag    = session_tag;
+      uint16_t  offset = 0;
 
       if (!session_locked && len > 0) {
 
@@ -228,55 +294,90 @@ void HttpStreamEngine::httpFillTask(void*) {
           memcpy(view, tail6, 6);
           memcpy(view + 6, cur, len);
           vlen = len + 6;
-        } else {
+        }
+        else {
           memcpy(view, cur, len);
           vlen = len;
         }
 
         if (audetect::detect_audio_format_strict(view, vlen, &dr)) {
-          if (dr.format == audetect::AF_MP3) tag = SLOT_MP3;
-          else if (dr.format == audetect::AF_AAC_ADTS) tag = SLOT_AAC;
 
-          offset = dr.offset - (tail_valid ? 6 : 0);
-          if ((int)offset < 0 || offset >= len) offset = 0;
+          if (dr.format == audetect::AF_MP3)
+            tag = SLOT_MP3;
+          else if (dr.format == audetect::AF_AAC_ADTS)
+            tag = SLOT_AAC;
 
-          session_tag = tag;
+          int off = dr.offset - (tail_valid ? 6 : 0);
+          if (off < 0) off = 0;
+          if (off > (int)len) off = len;
+
+          offset = (uint16_t)off;
+          session_tag    = tag;
           session_locked = true;
-          tail_valid = false;
-        } else if (len >= 6) {
+          tail_valid     = false;
+        }
+        else if (len >= 6) {
           memcpy(tail6, cur + len - 6, 6);
           tail_valid = true;
         }
       }
 
+      // ---------------- publish NET slot ----------------
       netSize[netWrite]      = len;
       netTag[netWrite]       = tag;
       netOffset[netWrite]    = offset;
       netSess[netWrite]      = my_session;
       netBufFilled[netWrite] = true;
-
       netWrite = (netWrite + 1) % NUM_BUFFERS;
 
+      bytes_committed += len;
       g_lastNetWriteMs = millis();
       g_httpBytesTick  += len;
 
-      // ---------- DEBUG ----------
-      dbg_pkts++;
-      dbg_bytes += len;
-      uint32_t now = millis();
-      if (now - dbg_last > 1000) {
-        dbg_last = now;
+      if (content_len > 0 && bytes_seen >= content_len) {
+        Serial.println("[HTTP] ✅ EOF (Content-Length)");
+        break;
       }
-      // --------------------------
     }
 
+    // ==================================================
+    //                 SELF-OWNED CLEANUP
+    // ==================================================
     http.end();
     sock.stop();
 
-    // 🔑 DO NOT FORCE STOP HERE — decoder drains NET
-    vTaskDelay(1);
+    // ✅ Only clean up IF THIS SESSION IS STILL CURRENT
+    if (g_play_session == my_session) {
+
+      stream_running = false;
+      g_isPlaying    = false;
+      g_url_open     = false;
+
+      Serial.printf(
+        "[HTTP] Final totals: seen=%lld committed=%lld content_len=%lld\n",
+        (long long)bytes_seen,
+        (long long)bytes_committed,
+        (long long)content_len
+      );
+
+      Serial.println("[HTTP] ⏹ Stream end");
+    }
+    else {
+      Serial.println("[HTTP] ℹ Old session exit (no cleanup)");
+    }
+
+    // Allow decoder to drain NET
+    uint32_t t0 = millis();
+    while (net_fill_percent() > 0 && millis() - t0 < 1000) {
+      vTaskDelay(10);
+    }
+
+    vTaskDelay(10);
   }
 }
+
+
+
 
 int HttpStreamEngine::net_fill_percent() {
 

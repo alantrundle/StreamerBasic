@@ -336,28 +336,46 @@ void AudioCore::decodeTask(void*) {
   constexpr int LO_PCT    = 70;
   constexpr int PRIME_PCT = 20;
 
-  const size_t HI_BYTES = (PCM_BUFFER_BYTES * HI_PCT) / 100;
-  const size_t LO_BYTES = (PCM_BUFFER_BYTES * LO_PCT) / 100;
+  const size_t HI_BYTES   = (PCM_BUFFER_BYTES * HI_PCT) / 100;
+  const size_t LO_BYTES   = (PCM_BUFFER_BYTES * LO_PCT) / 100;
   const size_t PRIME_SLOTS = (NUM_BUFFERS * PRIME_PCT) / 100;
 
   CodecKind active_codec = CODEC_UNKNOWN;
   uint32_t  last_session = 0xFFFFFFFF;
   bool      priming      = true;
+  bool      drained      = false;   // ✅ NEW: EOS guard
 
   for (;;) {
 
     // --------------------------------------------------
-    // Stream inactive → reset local state
+    // Stream inactive → DRAIN, NOT ABORT  ✅ FIXED
     // --------------------------------------------------
     if (!HttpStreamEngine::stream_running) {
-      priming        = true;
-      decoder_paused = false;
-      vTaskDelay(pdMS_TO_TICKS(5));
-      continue;
+
+      // ✅ If NET still has data, KEEP decoding
+      if (net_filled_slots() > 0) {
+        drained = false;
+        // fall through to normal decode path
+      }
+      else {
+        // ✅ NET empty → flush decoder ONCE
+        if (!drained) {
+          if (active_codec == CODEC_MP3)
+            mp3.write(nullptr, 0);
+          else if (active_codec == CODEC_AAC)
+            aac.write(nullptr, 0);
+          drained = true;
+        }
+
+        priming        = true;
+        decoder_paused = false;
+        vTaskDelay(pdMS_TO_TICKS(5));
+        continue;
+      }
     }
 
     // --------------------------------------------------
-    // NET priming phase
+    // NET priming phase (unchanged)
     // --------------------------------------------------
     if (priming) {
       if (net_filled_slots() < (int)PRIME_SLOTS) {
@@ -365,6 +383,7 @@ void AudioCore::decodeTask(void*) {
         continue;
       }
       priming = false;
+      drained = false;
     }
 
     // --------------------------------------------------
@@ -385,7 +404,7 @@ void AudioCore::decodeTask(void*) {
     }
 
     // --------------------------------------------------
-    // Wait for NET slot
+    // Wait for NET slot (unchanged)
     // --------------------------------------------------
     if (!HttpStreamEngine::netBufFilled[HttpStreamEngine::netRead]) {
       vTaskDelay(1);
@@ -401,7 +420,7 @@ void AudioCore::decodeTask(void*) {
     uint8_t  tag    = HttpStreamEngine::netTag[slot];
 
     // --------------------------------------------------
-    // New session → hard decoder reset
+    // New session → hard reset (unchanged)
     // --------------------------------------------------
     if (sess != last_session) {
       if (active_codec == CODEC_MP3) mp3.end();
@@ -409,6 +428,7 @@ void AudioCore::decodeTask(void*) {
       active_codec = CODEC_UNKNOWN;
       last_session = sess;
       priming      = true;
+      drained      = false;
       continue;
     }
 
@@ -427,7 +447,7 @@ void AudioCore::decodeTask(void*) {
     }
 
     // --------------------------------------------------
-    // Apply offset (header skip)
+    // Apply offset (unchanged)
     // --------------------------------------------------
     if (offset < bytes) {
       ptr   += offset;
@@ -435,7 +455,7 @@ void AudioCore::decodeTask(void*) {
     }
 
     // --------------------------------------------------
-    // Feed decoder
+    // Feed decoder (unchanged)
     // --------------------------------------------------
     if (bytes) {
       if (active_codec == CODEC_MP3)
@@ -445,14 +465,14 @@ void AudioCore::decodeTask(void*) {
     }
 
     // --------------------------------------------------
-    // Release NET slot
+    // Release NET slot (unchanged)
     // --------------------------------------------------
     HttpStreamEngine::netBufFilled[slot] = false;
     HttpStreamEngine::netSize[slot]      = 0;
-    HttpStreamEngine::netRead = (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
+    HttpStreamEngine::netRead =
+      (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
 
-    vTaskDelay(10);   // ✅ THIS IS THE RIGHT PLACE
+    vTaskDelay(5);   // ✅ correct placement preserved
   }
-
 }
 

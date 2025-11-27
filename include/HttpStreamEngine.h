@@ -23,6 +23,7 @@ public:
   static void begin();
   static void open(const char* url);
   static void play();
+  static void close();
   static void stop();
   static bool isPlaying();
 
