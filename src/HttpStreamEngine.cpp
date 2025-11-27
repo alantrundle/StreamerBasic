@@ -1,4 +1,5 @@
 #include "HttpStreamEngine.h"
+#include "AudioCore.h"
 
 // =======================================================
 // Static storage
@@ -27,6 +28,11 @@ const char*   HttpStreamEngine::g_open_url  = nullptr;
 volatile bool HttpStreamEngine::g_url_open  = false;
 volatile bool HttpStreamEngine::g_isPlaying = false;
 
+volatile bool HttpStreamEngine::stream_eof = false;
+
+ID3v2Meta HttpStreamEngine::id3m{};
+
+
 TaskHandle_t HttpStreamEngine::httpTaskHandle = nullptr;
 
 // =======================================================
@@ -48,6 +54,16 @@ void HttpStreamEngine::net_ring_clear() {
 bool HttpStreamEngine::isPlaying() {
   return g_isPlaying;
 }
+
+bool HttpStreamEngine::getID3(ID3v2Meta& out) {
+
+  if (!id3m.header_found)
+    return false;
+
+  out = id3m;
+  return true;
+}
+
 
 // =======================================================
 // Lifecycle
@@ -162,35 +178,30 @@ void HttpStreamEngine::httpFillTask(void*) {
   sock.setNoDelay(true);
 
   ID3v2Collector id3c{};
-  ID3v2Meta      id3m{};
+  //ID3v2Meta      id3m{};
+
+  ID3v2Meta&     id3 = HttpStreamEngine::id3m;
 
   uint8_t tail6[6] = {0};
   bool    tail_valid = false;
 
-  // ---- per-stream state ----
-  int64_t  content_len      = -1;
-  int64_t  bytes_seen       = 0;
-  int64_t  bytes_committed  = 0;
-  uint32_t stall_deadline   = 0;
+  int64_t  content_len     = -1;
+  int64_t  bytes_seen      = 0;
+  int64_t  bytes_committed = 0;
+  uint32_t stall_deadline  = 0;
 
   constexpr uint32_t STALL_TIMEOUT_MS = 1200;
 
   for (;;) {
 
-    // --------------------------------------------------
-    // Idle until a stream is requested
-    // --------------------------------------------------
+    // ---------------- IDLE ----------------
     if (!stream_running || !g_url_open) {
       vTaskDelay(10);
       continue;
     }
 
-    // ✅ Capture session ownership
     const uint32_t my_session = g_play_session;
 
-    // --------------------------------------------------
-    // Start new HTTP connection
-    // --------------------------------------------------
     http.end();
     sock.stop();
 
@@ -211,11 +222,12 @@ void HttpStreamEngine::httpFillTask(void*) {
       continue;
     }
 
-    // ---- Reset per-stream counters ----
-    content_len     = http.getSize();   // -1 if chunked
+    // -------- init per stream --------
+    content_len     = http.getSize();
     bytes_seen      = 0;
     bytes_committed = 0;
     stall_deadline  = millis() + STALL_TIMEOUT_MS;
+    stream_eof      = false;
 
     id3v2_reset_collector(&id3c);
     id3v2_reset_meta(&id3m);
@@ -227,9 +239,7 @@ void HttpStreamEngine::httpFillTask(void*) {
     Serial.printf("[HTTP] Connected: %s (len=%lld)\n",
                   g_open_url, (long long)content_len);
 
-    // ==================================================
-    //                    STREAM LOOP
-    // ==================================================
+    // ================= STREAM =================
     while (stream_running && g_play_session == my_session) {
 
       if (netBufFilled[netWrite]) {
@@ -249,7 +259,6 @@ void HttpStreamEngine::httpFillTask(void*) {
 
       int toRead = min(avail, MAX_CHUNK_SIZE);
 
-      // ✅ Clamp using RAW socket byte count
       if (content_len > 0) {
         int64_t remain = content_len - bytes_seen;
         if (remain <= 0)
@@ -272,16 +281,18 @@ void HttpStreamEngine::httpFillTask(void*) {
       uint8_t* cur = dst;
       size_t   len = readn;
 
-      // ---------------- ID3 peel ----------------
+      // ---------- ID3 peel ----------
       if (!session_locked && !id3m.header_found) {
-        id3v2_try_begin(cur, len, bytes_seen - len,
-                        MAX_CHUNK_SIZE, &id3c);
+        id3v2_try_begin(cur, len,
+                        bytes_seen - len,
+                        MAX_CHUNK_SIZE,
+                        &id3c);
         size_t taken = id3v2_consume(cur, len, &id3c, &id3m);
         cur += taken;
         len -= taken;
       }
 
-      SlotCodec tag    = session_tag;
+      SlotCodec tag = session_tag;
       uint16_t  offset = 0;
 
       if (!session_locked && len > 0) {
@@ -294,8 +305,7 @@ void HttpStreamEngine::httpFillTask(void*) {
           memcpy(view, tail6, 6);
           memcpy(view + 6, cur, len);
           vlen = len + 6;
-        }
-        else {
+        } else {
           memcpy(view, cur, len);
           vlen = len;
         }
@@ -322,7 +332,7 @@ void HttpStreamEngine::httpFillTask(void*) {
         }
       }
 
-      // ---------------- publish NET slot ----------------
+      // -------- publish NET slot --------
       netSize[netWrite]      = len;
       netTag[netWrite]       = tag;
       netOffset[netWrite]    = offset;
@@ -340,18 +350,14 @@ void HttpStreamEngine::httpFillTask(void*) {
       }
     }
 
-    // ==================================================
-    //                 SELF-OWNED CLEANUP
-    // ==================================================
+    // ================= HTTP ENDED =================
     http.end();
     sock.stop();
 
-    // ✅ Only clean up IF THIS SESSION IS STILL CURRENT
     if (g_play_session == my_session) {
 
       stream_running = false;
-      g_isPlaying    = false;
-      g_url_open     = false;
+      stream_eof     = true;
 
       Serial.printf(
         "[HTTP] Final totals: seen=%lld committed=%lld content_len=%lld\n",
@@ -360,21 +366,29 @@ void HttpStreamEngine::httpFillTask(void*) {
         (long long)content_len
       );
 
-      Serial.println("[HTTP] ⏹ Stream end");
-    }
-    else {
-      Serial.println("[HTTP] ℹ Old session exit (no cleanup)");
+      Serial.println("[HTTP] ⏹ HTTP EOF — draining decoder");
     }
 
-    // Allow decoder to drain NET
-    uint32_t t0 = millis();
-    while (net_fill_percent() > 0 && millis() - t0 < 1000) {
+    // ========= WAIT FOR DECODER DRAIN =========
+    //uint32_t t0 = millis();
+    while (AudioCore::pcm_buffer_percent() > 0) {
       vTaskDelay(10);
+    }
+
+    // ========= PLAYBACK FINISHED =========
+    if (stream_eof && g_play_session == my_session) {
+
+      g_isPlaying = false;
+      g_url_open  = false;
+      stream_eof  = false;
+
+      Serial.println("[HTTP] ✅ Decoder drained — playback finished");
     }
 
     vTaskDelay(10);
   }
 }
+
 
 
 

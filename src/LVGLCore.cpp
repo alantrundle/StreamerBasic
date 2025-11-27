@@ -95,18 +95,22 @@ void lvgl_start_task() {
         const int net_pct = HttpStreamEngine::net_fill_percent();
         const int pcm_pct  = AudioCore::pcm_buffer_percent();
 
+        ID3v2Meta meta;
+        
+
         ui_update_stats_bars(net_pct , pcm_pct);
         //ui_update_stats_decoder(codec_name_from_enum(feed_codec), currentMP3Info.samplerate, currentMP3Info.channels, currentMP3Info.kbps);
         //ui_update_stats_outputs(i2s_output, a2dp_connected, a2dp_connected_name);
         //ui_update_stats_wifi(WiFi.status(), WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
 
-        // Update UI with ID3 Info
-        //if (id3m.header_found && g_id3_session_pending)
-        //  ui_update_player_id3(true, id3m.artist, id3m.title, id3m.album, (int)id3m.track);
-        //else
-        //  ui_update_player_id3(false, "-", "-", "-", -1);
-       
 
+        if (HttpStreamEngine::getID3(meta)) {
+          ui_update_player_id3(true, meta.artist, meta.title, meta.album, (int)meta.track);
+        }
+        else {
+          ui_update_player_id3(false, "-", "-", "-", -1);
+        }
+       
         lv_timer_handler();
 
         vTaskDelayUntil(&last, period);  

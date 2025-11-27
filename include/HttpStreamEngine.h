@@ -37,8 +37,11 @@ public:
   static volatile uint16_t netOffset[NUM_BUFFERS];
   static volatile uint32_t netSess[NUM_BUFFERS];
 
+  static volatile bool stream_eof;
+
   static volatile int netWrite;
   static volatile int netRead;
+  
 
   // ================= Stream state =================
   static volatile uint32_t g_play_session;
@@ -46,6 +49,9 @@ public:
   static volatile bool     g_force_next;
 
   static int net_fill_percent();
+
+  static ID3v2Meta id3m;
+  static bool getID3(ID3v2Meta& out);
 
 private:
   // Task

@@ -21,36 +21,39 @@ static constexpr int PLAYLIST_COUNT =
   sizeof(urls) / sizeof(urls[0]);
 
 // --------------------------------------------------
-// State
+// Player state
 // --------------------------------------------------
-static int  track = 0;
-static bool autoAdvance = false;
-static bool wasPlaying  = false;
+static int  track       = 0;   // current track index
+static bool autoAdvance = false; // true = auto-advance at EOF
+static bool wasPlaying  = false; // last isPlaying() value
 
 // --------------------------------------------------
+// INTERNAL helper
+// --------------------------------------------------
 static void startTrack() {
-  Serial.printf("[PLAYER] START track=%d\n", track);
+  Serial.printf("[PLAYER] ▶ Start track %d: %s\n", track, urls[track]);
   HttpStreamEngine::open(urls[track]);
   HttpStreamEngine::play();
 }
 
 // --------------------------------------------------
-// Controls
+// Public API (for LVGL buttons)
 // --------------------------------------------------
 void AudioPlayer_Play() {
 
-  Serial.println("[PLAYER] PLAY");
+  Serial.println("[PLAYER] Play pressed");
 
+  // Play always (re)starts from track 0 and enables auto-advance
+  track       = 0;
   autoAdvance = true;
-  track = 0;
 
-  HttpStreamEngine::stop();
+  HttpStreamEngine::stop();   // ensure clean state
   startTrack();
 }
 
 void AudioPlayer_Stop() {
 
-  Serial.println("[PLAYER] STOP");
+  Serial.println("[PLAYER] Stop pressed");
 
   autoAdvance = false;
   HttpStreamEngine::stop();
@@ -58,15 +61,14 @@ void AudioPlayer_Stop() {
 
 void AudioPlayer_Next() {
 
-  Serial.println("[PLAYER] NEXT");
+  Serial.println("[PLAYER] Next pressed");
 
-  autoAdvance = false;
-
-  if (track < PLAYLIST_COUNT - 1) {
+  // Manual next:
+  //   - advance +1, but clamp at last track
+  if (track < PLAYLIST_COUNT - 1)
     track++;
-  }
 
-  Serial.printf("[PLAYER] track now %d\n", track);
+  Serial.printf("[PLAYER] Next → track %d\n", track);
 
   HttpStreamEngine::close();
   startTrack();
@@ -74,35 +76,38 @@ void AudioPlayer_Next() {
 
 void AudioPlayer_Prev() {
 
-  Serial.println("[PLAYER] PREV");
+  Serial.println("[PLAYER] Prev pressed");
 
-  autoAdvance = false;
-
-  if (track > 0) {
+  // Manual prev:
+  //   - back -1, but clamp at 0
+  if (track > 0)
     track--;
-  }
 
-  Serial.printf("[PLAYER] track now %d\n", track);
+  Serial.printf("[PLAYER] Prev → track %d\n", track);
 
   HttpStreamEngine::close();
   startTrack();
 }
 
 // --------------------------------------------------
-// Call from loop()
+// Call from main loop()
 // --------------------------------------------------
 void AudioPlayer_Loop() {
 
   bool playing = HttpStreamEngine::isPlaying();
 
-  // Detect natural end (falling edge)
+  // Debug to see state transitions
+  //Serial.printf("[PLAYER] Loop: was=%d now=%d auto=%d track=%d\n",
+                //wasPlaying, playing, autoAdvance, track);
+
+  // Natural end-of-track: falling edge from playing → not playing
   if (wasPlaying && !playing && autoAdvance) {
 
     track++;
     if (track >= PLAYLIST_COUNT)
       track = 0;
 
-    Serial.printf("[PLAYER] AUTO ADVANCE → %d\n", track);
+    Serial.printf("[PLAYER] Auto-advance → track %d\n", track);
     startTrack();
   }
 
