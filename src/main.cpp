@@ -6,6 +6,8 @@
 #include "HttpStreamEngine.h"
 
 #include "LVGLCore.h"
+#include "ui/ui.h"
+
 
 #include "AudioPlayer.h"
 
@@ -24,11 +26,14 @@ static void connectWiFi() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(250);
     Serial.print(".");
-    if (millis() - start > 15000) {
+    if (millis() - start > 30000) {
       Serial.println("\n[WIFI] ❌ Connection timeout");
       return;
     }
   }
+
+  // enable Player controls button
+  lv_obj_clear_state(objects.start_btn, LV_STATE_DISABLED);
 
   Serial.printf("\n[WIFI] ✅ Connected, IP=%s\n",
                 WiFi.localIP().toString().c_str());

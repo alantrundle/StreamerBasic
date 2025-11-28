@@ -22,7 +22,9 @@ AACDecoderHelix aac;
 volatile MP3StatusInfo currentMP3Info = {};
 volatile CodecKind     feed_codec     = CODEC_UNKNOWN;
 
-volatile bool decoder_paused = false;
+bool AudioCore::decoder_paused = false;
+bool AudioCore::decoder_auto_paused = false;
+
 volatile bool i2s_output     = true;
 volatile bool a2dp_audio_ready = false;
 
@@ -38,6 +40,8 @@ static volatile size_t a2dp_read_index_i2s = 0;
 static volatile size_t a2dp_buffer_fill    = 0;
 
 static portMUX_TYPE a2dp_mux = portMUX_INITIALIZER_UNLOCKED;
+
+TaskHandle_t i2STask;
 
 // ======================================================
 // Ring helpers
@@ -104,6 +108,26 @@ int AudioCore::net_filled_slots() {
   for (int i = 0; i < NUM_BUFFERS; ++i)
     if (HttpStreamEngine::netBufFilled[i]) n++;
   return n;
+}
+
+// ======================================================
+// Clear shared PCM ring buffer safely
+// ======================================================
+void AudioCore::clearPCM() {
+
+  portENTER_CRITICAL(&a2dp_mux);
+
+  a2dp_write_index    = 0;
+  a2dp_read_index     = 0;
+  a2dp_read_index_i2s = 0;
+  a2dp_buffer_fill    = 0;
+
+  // Optional but useful for silence guarantee
+  memset(a2dp_buffer, 0, PCM_BUFFER_BYTES);
+
+  portEXIT_CRITICAL(&a2dp_mux);
+
+  Serial.println("[Audio] 🧹 PCM buffer cleared");
 }
 
 // ======================================================
@@ -235,11 +259,26 @@ bool AudioCore::init() {
       4096,
       nullptr,
       1,
-      nullptr,
+      &i2STask,
       1);
+
+      // if i2s output is off then stop it.
+      if (!i2s_output) {
+        vTaskSuspend(i2STask);
+      }
+
+     
 
   Serial.println("[Audio] ✅ AudioCore initialised (shared ring)");
   return true;
+}
+
+void AudioCore::StartI2S() {
+  vTaskResume(i2STask);
+}
+
+void AudioCore::StopI2S() {
+  vTaskSuspend(i2STask);
 }
 
 void AudioCore::i2sPlaybackTask(void* /*param*/) {
@@ -368,7 +407,7 @@ void AudioCore::decodeTask(void*) {
         }
 
         priming        = true;
-        decoder_paused = false;
+        AudioCore::decoder_auto_paused = false;
         vTaskDelay(pdMS_TO_TICKS(5));
         continue;
       }
@@ -393,12 +432,12 @@ void AudioCore::decodeTask(void*) {
     size_t fill = a2dp_buffer_fill;
     portEXIT_CRITICAL(&a2dp_mux);
 
-    if (!decoder_paused && fill >= HI_BYTES)
-      decoder_paused = true;
-    else if (decoder_paused && fill <= LO_BYTES)
-      decoder_paused = false;
+    if (!AudioCore::decoder_auto_paused && fill >= HI_BYTES)
+      AudioCore::decoder_auto_paused = true;
+    else if (AudioCore::decoder_auto_paused && fill <= LO_BYTES)
+      AudioCore::decoder_auto_paused = false;
 
-    if (decoder_paused) {
+    if (AudioCore::decoder_paused || AudioCore::decoder_auto_paused) {
       vTaskDelay(5);
       continue;
     }

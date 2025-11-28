@@ -25,7 +25,11 @@ public:
   static void play();
   static void close();
   static void stop();
+
+  static void net_ring_clear();
+
   static bool isPlaying();
+  static bool isAlive();
 
   // ================= NET ring =================
   static EXT_RAM_ATTR uint8_t* net_pool;
@@ -41,6 +45,8 @@ public:
 
   static volatile int netWrite;
   static volatile int netRead;
+
+  
   
 
   // ================= Stream state =================
@@ -57,9 +63,6 @@ private:
   // Task
   static TaskHandle_t httpTaskHandle;
   static void httpFillTask(void* arg);
-
-  // Helpers
-  static void net_ring_clear();
 
   // URL / state
   static const char*   g_open_url;

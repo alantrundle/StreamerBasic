@@ -55,6 +55,13 @@ bool HttpStreamEngine::isPlaying() {
   return g_isPlaying;
 }
 
+bool HttpStreamEngine::isAlive() {
+    return g_isPlaying &&
+           stream_running &&
+           g_url_open &&
+           !stream_eof;
+}
+
 bool HttpStreamEngine::getID3(ID3v2Meta& out) {
 
   if (!id3m.header_found)
@@ -112,6 +119,7 @@ void HttpStreamEngine::open(const char* url) {
   stream_running = false;
 
   net_ring_clear();
+  AudioCore::clearPCM();
 
   Serial.printf("[HTTP] Opened URL: %s\n", g_open_url);
 }

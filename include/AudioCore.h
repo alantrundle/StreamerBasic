@@ -25,4 +25,15 @@ public:
   static void i2sPlaybackTask(void*);
   static int  pcm_buffer_percent();
   static int  net_filled_slots();
+
+  static void clearPCM();
+
+  static void StartI2S();
+  static void StopI2S();
+
+  static bool decoder_paused;
+
+private:
+
+  static bool decoder_auto_paused;   // AUTO pause (buffer)
 };

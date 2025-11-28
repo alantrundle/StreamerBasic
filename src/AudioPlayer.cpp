@@ -1,5 +1,6 @@
 #include "AudioPlayer.h"
 #include "HttpStreamEngine.h"
+#include "AudioCore.h"
 
 // --------------------------------------------------
 // Playlist
@@ -23,9 +24,10 @@ static constexpr int PLAYLIST_COUNT =
 // --------------------------------------------------
 // Player state
 // --------------------------------------------------
-static int  track       = 0;   // current track index
-static bool autoAdvance = false; // true = auto-advance at EOF
-static bool wasPlaying  = false; // last isPlaying() value
+static int  track        = 0;
+static bool autoAdvance  = false;
+static bool wasPlaying   = false;
+static bool isPaused     = false;
 
 // --------------------------------------------------
 // INTERNAL helper
@@ -37,18 +39,54 @@ static void startTrack() {
 }
 
 // --------------------------------------------------
-// Public API (for LVGL buttons)
+// Public API (LVGL buttons)
 // --------------------------------------------------
 void AudioPlayer_Play() {
 
   Serial.println("[PLAYER] Play pressed");
 
-  // Play always (re)starts from track 0 and enables auto-advance
-  track       = 0;
   autoAdvance = true;
 
-  HttpStreamEngine::stop();   // ensure clean state
+  // ✅ If paused, try to resume
+  if (isPaused) {
+
+    Serial.println("[PLAYER] Resume requested");
+
+    if (HttpStreamEngine::isAlive()) {
+      // Soft resume
+      AudioCore::decoder_paused = false;
+      AudioCore::StartI2S();
+      isPaused = false;
+      return;
+    }
+
+    // Session died → restart same track
+    AudioCore::clearPCM();
+    HttpStreamEngine::net_ring_clear();
+    startTrack();
+
+    AudioCore::decoder_paused  = false;
+    isPaused = false;
+    return;
+  }
+
+  // ✅ Not paused → fresh Play always starts from track 0
+  track = 0;
+
+  HttpStreamEngine::stop();
   startTrack();
+}
+
+void AudioPlayer_Pause() {
+
+  Serial.printf("[PLAYER] Pause pressed, DEBUG=%d", HttpStreamEngine::isPlaying());
+
+  if (!HttpStreamEngine::isPlaying())
+    return;
+
+  AudioCore::decoder_paused = true;
+  AudioCore::StopI2S();
+  isPaused = true;
 }
 
 void AudioPlayer_Stop() {
@@ -56,6 +94,8 @@ void AudioPlayer_Stop() {
   Serial.println("[PLAYER] Stop pressed");
 
   autoAdvance = false;
+  isPaused    = false;
+
   HttpStreamEngine::stop();
 }
 
@@ -63,14 +103,15 @@ void AudioPlayer_Next() {
 
   Serial.println("[PLAYER] Next pressed");
 
-  // Manual next:
-  //   - advance +1, but clamp at last track
+  autoAdvance = false;
+  isPaused    = false;
+
   if (track < PLAYLIST_COUNT - 1)
     track++;
 
   Serial.printf("[PLAYER] Next → track %d\n", track);
 
-  HttpStreamEngine::close();
+  HttpStreamEngine::stop();
   startTrack();
 }
 
@@ -78,14 +119,15 @@ void AudioPlayer_Prev() {
 
   Serial.println("[PLAYER] Prev pressed");
 
-  // Manual prev:
-  //   - back -1, but clamp at 0
+  autoAdvance = false;
+  isPaused    = false;
+
   if (track > 0)
     track--;
 
   Serial.printf("[PLAYER] Prev → track %d\n", track);
 
-  HttpStreamEngine::close();
+  HttpStreamEngine::stop();
   startTrack();
 }
 
@@ -96,12 +138,8 @@ void AudioPlayer_Loop() {
 
   bool playing = HttpStreamEngine::isPlaying();
 
-  // Debug to see state transitions
-  //Serial.printf("[PLAYER] Loop: was=%d now=%d auto=%d track=%d\n",
-                //wasPlaying, playing, autoAdvance, track);
-
-  // Natural end-of-track: falling edge from playing → not playing
-  if (wasPlaying && !playing && autoAdvance) {
+  // Auto-advance only on natural EOF
+  if (wasPlaying && !playing && autoAdvance && !isPaused) {
 
     track++;
     if (track >= PLAYLIST_COUNT)

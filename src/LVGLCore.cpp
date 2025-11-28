@@ -89,7 +89,7 @@ void lvgl_start_task() {
     [](void*) {
 
       TickType_t last = xTaskGetTickCount();
-      const TickType_t period = pdMS_TO_TICKS(5); // 60Hz
+      const TickType_t period = pdMS_TO_TICKS(30); // 60Hz
 
       for (;;) {
         const int net_pct = HttpStreamEngine::net_fill_percent();
@@ -97,7 +97,6 @@ void lvgl_start_task() {
 
         ID3v2Meta meta;
         
-
         ui_update_stats_bars(net_pct , pcm_pct);
         //ui_update_stats_decoder(codec_name_from_enum(feed_codec), currentMP3Info.samplerate, currentMP3Info.channels, currentMP3Info.kbps);
         //ui_update_stats_outputs(i2s_output, a2dp_connected, a2dp_connected_name);
@@ -111,6 +110,7 @@ void lvgl_start_task() {
           ui_update_player_id3(false, "-", "-", "-", -1);
         }
        
+        ui_tick();
         lv_timer_handler();
 
         vTaskDelayUntil(&last, period);  

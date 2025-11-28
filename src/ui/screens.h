@@ -12,6 +12,8 @@ typedef struct _objects_t {
     lv_obj_t *stats;
     lv_obj_t *player;
     lv_obj_t *obj0;
+    lv_obj_t *stats_btn;
+    lv_obj_t *start_btn;
     lv_obj_t *obj1;
     lv_obj_t *stats_lbl_pct_net;
     lv_obj_t *stats_lbl_pct_pcm;

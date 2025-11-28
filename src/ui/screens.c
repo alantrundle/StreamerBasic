@@ -34,7 +34,9 @@ void create_screen_start() {
             lv_label_set_text(obj, "AT1053 Audio Streamer");
         }
         {
+            // statsBtn
             lv_obj_t *obj = lv_button_create(parent_obj);
+            objects.stats_btn = obj;
             lv_obj_set_pos(obj, 13, 110);
             lv_obj_set_size(obj, 454, 50);
             lv_obj_add_event_cb(obj, action_goto_stats_view, LV_EVENT_PRESSED, (void *)0);
@@ -50,10 +52,13 @@ void create_screen_start() {
             }
         }
         {
+            // startBtn
             lv_obj_t *obj = lv_button_create(parent_obj);
+            objects.start_btn = obj;
             lv_obj_set_pos(obj, 13, 178);
             lv_obj_set_size(obj, 454, 50);
             lv_obj_add_event_cb(obj, action_goto_player_view, LV_EVENT_PRESSED, (void *)0);
+            lv_obj_add_state(obj, LV_STATE_DISABLED);
             {
                 lv_obj_t *parent_obj = obj;
                 {

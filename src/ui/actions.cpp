@@ -7,6 +7,7 @@ bool isPaused = false;
 
 
 extern void AudioPlayer_Play();
+extern void AudioPlayer_Pause();
 extern void AudioPlayer_Stop();
 extern void AudioPlayer_Next();
 extern void AudioPlayer_Prev();
@@ -58,7 +59,7 @@ void action_player_play_pause(lv_event_t * e) {
 
     if(isPaused) {
         lv_label_set_text(objects.player_lbl_btn_play_pause, "Play");
-        AudioPlayer_Stop();
+        AudioPlayer_Pause();
         isPaused = false;
     } else {
         lv_label_set_text(objects.player_lbl_btn_play_pause, "Pause");
