@@ -31,8 +31,6 @@ static uint32_t my_tick(void) {
   return (uint32_t)millis();
 }
 
-
-
 void lvgl_init() {
 
   // --- Display init ---
@@ -50,7 +48,7 @@ void lvgl_init() {
   lv_display_set_flush_cb(lv_disp, my_flush);
 
   // Allocate small INTERNAL DMA buffers (partial rendering)
-  int lines = 30;                                   // tune (20..40 works w
+  int lines = 20;                                   // tune (20..40 works w
   size_t bytes = (size_t)TFT_HOR_RES * lines * sizeof(lv_color_t);
   lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -89,15 +87,18 @@ void lvgl_start_task() {
     [](void*) {
 
       TickType_t last = xTaskGetTickCount();
-      const TickType_t period = pdMS_TO_TICKS(30); // 60Hz
+      const TickType_t period = pdMS_TO_TICKS(20); // 60Hz
 
       for (;;) {
         const int net_pct = HttpStreamEngine::net_fill_percent();
         const int pcm_pct  = AudioCore::pcm_buffer_percent();
 
         ID3v2Meta meta;
+
+        lv_timer_handler();
         
         ui_update_stats_bars(net_pct , pcm_pct);
+        //ui_update_stats_outputs(i2s_output, a2dp_connected, "none");
         //ui_update_stats_decoder(codec_name_from_enum(feed_codec), currentMP3Info.samplerate, currentMP3Info.channels, currentMP3Info.kbps);
         //ui_update_stats_outputs(i2s_output, a2dp_connected, a2dp_connected_name);
         //ui_update_stats_wifi(WiFi.status(), WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
@@ -109,9 +110,8 @@ void lvgl_start_task() {
         else {
           ui_update_player_id3(false, "-", "-", "-", -1);
         }
-       
+
         ui_tick();
-        lv_timer_handler();
 
         vTaskDelayUntil(&last, period);  
       }
