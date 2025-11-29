@@ -344,7 +344,7 @@ bool AudioCore::init() {
       "DECODE",
       8192,
       nullptr,
-      15,
+      2,
       nullptr,
       1);
 
@@ -434,9 +434,9 @@ void AudioCore::i2sPlaybackTask(void* /*param*/) {
 // ======================================================
 void AudioCore::decodeTask(void*) {
 
-  constexpr int HI_PCT    = 80;
+  constexpr int HI_PCT    = 90;
   constexpr int LO_PCT    = 50;
-  constexpr int PRIME_PCT = 25;
+  constexpr int PRIME_PCT = 30;
 
   const size_t HI_BYTES   = (PCM_BUFFER_BYTES * HI_PCT) / 100;
   const size_t LO_BYTES   = (PCM_BUFFER_BYTES * LO_PCT) / 100;
@@ -471,7 +471,7 @@ void AudioCore::decodeTask(void*) {
 
         priming        = true;
         AudioCore::decoder_auto_paused = false;
-        vTaskDelay(pdMS_TO_TICKS(5));
+        vTaskDelay(pdMS_TO_TICKS(3));
         continue;
       }
     }
@@ -481,7 +481,7 @@ void AudioCore::decodeTask(void*) {
     // --------------------------------------------------
     if (priming) {
       if (net_filled_slots() < (int)PRIME_SLOTS) {
-        vTaskDelay(2);
+        vTaskDelay(3);
         continue;
       }
       priming = false;
@@ -501,7 +501,7 @@ void AudioCore::decodeTask(void*) {
       AudioCore::decoder_auto_paused = false;
 
     if (AudioCore::decoder_paused || AudioCore::decoder_auto_paused) {
-      vTaskDelay(2);
+      vTaskDelay(3);
       continue;
     }
 
@@ -509,7 +509,7 @@ void AudioCore::decodeTask(void*) {
     // Wait for NET slot (unchanged)
     // --------------------------------------------------
     if (!HttpStreamEngine::netBufFilled[HttpStreamEngine::netRead]) {
-      vTaskDelay(2);
+      vTaskDelay(1);
       continue;
     }
 

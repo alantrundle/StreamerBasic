@@ -100,7 +100,7 @@ void HttpStreamEngine::begin() {
       "HTTPFill",
       8192,
       nullptr,
-      17,
+      1,
       &httpTaskHandle,
       1);
 
@@ -186,8 +186,6 @@ void HttpStreamEngine::httpFillTask(void*) {
   sock.setNoDelay(true);
 
   ID3v2Collector id3c{};
-  //ID3v2Meta      id3m{};
-
   ID3v2Meta&     id3 = HttpStreamEngine::id3m;
 
   uint8_t tail6[6] = {0};
@@ -196,9 +194,11 @@ void HttpStreamEngine::httpFillTask(void*) {
   int64_t  content_len     = -1;
   int64_t  bytes_seen      = 0;
   int64_t  bytes_committed = 0;
-  uint32_t stall_deadline  = 0;
 
-  constexpr uint32_t STALL_TIMEOUT_MS = 1200;
+
+
+  uint32_t stall_deadline = 0;
+  int      stall_retries  = 0;
 
   for (;;) {
 
@@ -218,12 +218,13 @@ void HttpStreamEngine::httpFillTask(void*) {
       continue;
     }
 
-    http.setReuse(true);
-    http.setTimeout(2500);
+    http.setReuse(false);            // ✅ IMPORTANT
+    http.setTimeout(3000);
     http.setConnectTimeout(4000);
 
     int code = http.GET();
     if (code != HTTP_CODE_OK && code != HTTP_CODE_PARTIAL_CONTENT) {
+      Serial.printf("[HTTP] ❌ GET failed: %d\n", code);
       http.end();
       sock.stop();
       vTaskDelay(500);
@@ -234,8 +235,10 @@ void HttpStreamEngine::httpFillTask(void*) {
     content_len     = http.getSize();
     bytes_seen      = 0;
     bytes_committed = 0;
-    stall_deadline  = millis() + STALL_TIMEOUT_MS;
-    stream_eof      = false;
+    stall_deadline  = millis() + STALL_RETRY_TIMEOUT_MS;
+    stall_retries   = 0;
+
+    stream_eof = false;
 
     id3v2_reset_collector(&id3c);
     id3v2_reset_meta(&id3m);
@@ -256,12 +259,31 @@ void HttpStreamEngine::httpFillTask(void*) {
       }
 
       int avail = sock.available();
+
+      // ✅ ROBUST stall handling
       if (avail <= 0) {
-        if (!sock.connected() || millis() > stall_deadline) {
-          Serial.println("[HTTP] ⚠ Stall or disconnect");
+
+        if (!sock.connected()) {
+          Serial.println("[HTTP] ❌ Socket disconnected");
           break;
         }
-        vTaskDelay(1);
+
+        if (millis() > stall_deadline) {
+
+          stall_retries++;
+
+          Serial.printf("[HTTP] ⚠ Stall retry %d/%d\n",
+                        stall_retries, STALL_MAX_RETRIES);
+
+          if (stall_retries >= STALL_MAX_RETRIES) {
+            Serial.println("[HTTP] ❌ Stall limit reached");
+            break;
+          }
+
+          stall_deadline = millis() + STALL_RETRY_TIMEOUT_MS;
+        }
+
+        vTaskDelay(2);
         continue;
       }
 
@@ -269,10 +291,8 @@ void HttpStreamEngine::httpFillTask(void*) {
 
       if (content_len > 0) {
         int64_t remain = content_len - bytes_seen;
-        if (remain <= 0)
-          break;
-        if (toRead > (int)remain)
-          toRead = (int)remain;
+        if (remain <= 0) break;
+        if (toRead > (int)remain) toRead = (int)remain;
       }
 
       uint8_t* dst = netBuffers[netWrite];
@@ -283,19 +303,17 @@ void HttpStreamEngine::httpFillTask(void*) {
         continue;
       }
 
+      // ✅ GOOD DATA → reset stall state
       bytes_seen += readn;
-      stall_deadline = millis() + STALL_TIMEOUT_MS;
+      stall_deadline = millis() + STALL_RETRY_TIMEOUT_MS;
+      stall_retries  = 0;
 
       uint8_t* cur = dst;
       size_t   len = readn;
 
       // ---------- ID3 peel ----------
-      if (!session_locked && !id3m.header_found) {
-        id3v2_try_begin(cur, len,
-                        bytes_seen - len,
-                        MAX_CHUNK_SIZE,
-                        &id3c);
-        size_t taken = id3v2_consume(cur, len, &id3c, &id3m);
+      if (!session_locked && !id3.header_found) {
+        size_t taken = id3v2_consume(cur, len, &id3c, &id3);
         cur += taken;
         len -= taken;
       }
@@ -332,7 +350,7 @@ void HttpStreamEngine::httpFillTask(void*) {
           offset = (uint16_t)off;
           session_tag    = tag;
           session_locked = true;
-          tail_valid     = false;
+          tail_valid = false;
         }
         else if (len >= 6) {
           memcpy(tail6, cur + len - 6, 6);
@@ -344,7 +362,7 @@ void HttpStreamEngine::httpFillTask(void*) {
       netSize[netWrite]      = len;
       netTag[netWrite]       = tag;
       netOffset[netWrite]    = offset;
-      netSess[netWrite]      = my_session;
+      netSess[netWrite]     = my_session;
       netBufFilled[netWrite] = true;
       netWrite = (netWrite + 1) % NUM_BUFFERS;
 
@@ -378,12 +396,10 @@ void HttpStreamEngine::httpFillTask(void*) {
     }
 
     // ========= WAIT FOR DECODER DRAIN =========
-    //uint32_t t0 = millis();
     while (AudioCore::pcm_buffer_percent() > 0) {
       vTaskDelay(10);
     }
 
-    // ========= PLAYBACK FINISHED =========
     if (stream_eof && g_play_session == my_session) {
 
       g_isPlaying = false;
@@ -393,7 +409,7 @@ void HttpStreamEngine::httpFillTask(void*) {
       Serial.println("[HTTP] ✅ Decoder drained — playback finished");
     }
 
-    vTaskDelay(10);
+    vTaskDelay(5);
   }
 }
 

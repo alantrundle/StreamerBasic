@@ -76,6 +76,8 @@ void A2DPCore::start() {
     esp_bluedroid_enable();
   }
 
+  esp_coex_preference_set(ESP_COEX_PREFER_BALANCE);
+
   esp_bt_gap_register_callback(gap_cb);
   esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE,
                            ESP_BT_GENERAL_DISCOVERABLE);
