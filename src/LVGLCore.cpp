@@ -98,7 +98,7 @@ void lvgl_start_task() {
         lv_timer_handler();
         
         ui_update_stats_bars(net_pct , pcm_pct);
-        //ui_update_stats_outputs(i2s_output, a2dp_connected, "none");
+        ui_update_stats_outputs(AudioCore::is_i2s_output_enabled(), AudioCore::is_a2dp_audio_ready(), "none");
         //ui_update_stats_decoder(codec_name_from_enum(feed_codec), currentMP3Info.samplerate, currentMP3Info.channels, currentMP3Info.kbps);
         //ui_update_stats_outputs(i2s_output, a2dp_connected, a2dp_connected_name);
         //ui_update_stats_wifi(WiFi.status(), WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());

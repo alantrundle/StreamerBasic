@@ -100,7 +100,7 @@ void HttpStreamEngine::begin() {
       "HTTPFill",
       8192,
       nullptr,
-      2,
+      17,
       &httpTaskHandle,
       1);
 

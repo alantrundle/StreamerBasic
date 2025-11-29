@@ -344,7 +344,7 @@ bool AudioCore::init() {
       "DECODE",
       8192,
       nullptr,
-      1,
+      15,
       nullptr,
       1);
 
@@ -435,8 +435,8 @@ void AudioCore::i2sPlaybackTask(void* /*param*/) {
 void AudioCore::decodeTask(void*) {
 
   constexpr int HI_PCT    = 90;
-  constexpr int LO_PCT    = 30;
-  constexpr int PRIME_PCT = 20;
+  constexpr int LO_PCT    = 60;
+  constexpr int PRIME_PCT = 25;
 
   const size_t HI_BYTES   = (PCM_BUFFER_BYTES * HI_PCT) / 100;
   const size_t LO_BYTES   = (PCM_BUFFER_BYTES * LO_PCT) / 100;
@@ -574,7 +574,7 @@ void AudioCore::decodeTask(void*) {
     HttpStreamEngine::netRead =
       (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
 
-    vTaskDelay(1);   // ✅ correct placement preserved
+    vTaskDelay(5);   // ✅ correct placement preserved
   }
 }
 
