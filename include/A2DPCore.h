@@ -1,51 +1,91 @@
 #pragma once
 
-#include <stdint.h>
+#include <Arduino.h>
+
 #include "esp_a2dp_api.h"
+#include "esp_avrc_api.h"
+#include "esp_bt.h"
+#include "esp_bt_main.h"
+#include "esp_bt_device.h"
 #include "esp_gap_bt_api.h"
 
-// Thin wrapper around ESP-IDF Classic A2DP Source + GAP scan
+// ------------------------------------------------------------
+// Public callback types
+// ------------------------------------------------------------
+
+typedef void (*A2DPConnectionStateCallback)(
+    esp_a2d_connection_state_t state,
+    void* user
+);
+
+typedef void (*A2DPAudioStateCallback)(
+    esp_a2d_audio_state_t state,
+    void* user
+);
+
+typedef void (*A2DPScanCallback)(
+    int count,
+    const char* const* names,
+    const char* const* macs,
+    const int8_t* rssis
+);
+
+// ------------------------------------------------------------
+
 class A2DPCore {
 public:
-    using pcm_callback_t  = int32_t (*)(uint8_t* data, int32_t len);
-    using scan_callback_t = void (*)(int count,
-                                     const char* const* names,
-                                     const char* const* macs,
-                                     const int8_t*     rssis);
-    using a2dp_conn_cb_t  = void (*)(esp_a2d_connection_state_t state, void* user);
-    using a2dp_audio_cb_t = void (*)(esp_a2d_audio_state_t      state, void* user);
+  A2DPCore();
 
-    A2DPCore();
+  // Configuration (set BEFORE start)
+  void set_device_name(const char* name);
 
-    // Configuration
-    void set_device_name(const char* name);
-    void set_pcm_callback(pcm_callback_t cb);
-    void set_scan_callback(scan_callback_t cb);
-    void set_connectstate_callback(a2dp_conn_cb_t cb);
-    void set_audiostate_callback(a2dp_audio_cb_t cb);
+  void set_connectionstate_callback(A2DPConnectionStateCallback cb);
+  void set_audiostate_callback(A2DPAudioStateCallback cb);
+  void set_scan_callback(A2DPScanCallback cb);
+  void set_pcm_callback(esp_a2d_source_data_cb_t cb);
 
-    // Lifecycle
-    bool start();              // bring up Classic BT + A2DP source
-    void stop();               // stop A2DP source (does NOT tear down controller)
-    void start_scan(uint32_t seconds);
-    bool connect_by_index(int index);
-    void disconnect();
+  // 🔁 Auto reconnect (new, minimal)
+  void set_autoreconnection(bool enable);
+
+  // Control
+  void start();
+  void start_scan(uint32_t duration_seconds);
+  void connect_by_index(int index);
 
 private:
-    // Internal GAP + A2DP callbacks
-    static void raw_gap_cb(esp_bt_gap_cb_event_t event,
-                           esp_bt_gap_cb_param_t* param);
-    static void a2dp_cb(esp_a2d_cb_event_t event,
-                        esp_a2d_cb_param_t* param);
+  // ESP-IDF callbacks
+  static void a2dp_cb(esp_a2d_cb_event_t event,
+                      esp_a2d_cb_param_t* param);
 
-    // Classic BT bring-up (controller + bluedroid)
-    static void ensure_bt_ready();
+  static void gap_cb(esp_bt_gap_cb_event_t event,
+                     esp_bt_gap_cb_param_t* param);
 
-    // Static config
-    static const char*  device_name;
-    static pcm_callback_t  pcm_cb_;
-    static scan_callback_t scan_cb_;
-    static a2dp_conn_cb_t  conn_cb_;
-    static a2dp_audio_cb_t audio_cb_;
+  static void avrc_tg_cb(esp_avrc_tg_cb_event_t event,
+                         esp_avrc_tg_cb_param_t* param);
+
+  // Singleton instance
+  static A2DPCore* self_;
+
+  // Registered callbacks
+  A2DPConnectionStateCallback conn_cb_  = nullptr;
+  A2DPAudioStateCallback      audio_cb_ = nullptr;
+  A2DPScanCallback            scan_cb_  = nullptr;
+  esp_a2d_source_data_cb_t    pcm_cb_   = nullptr;
+
+  // Device name
+  char device_name_[32] = {0};
+
+  // 🔁 Auto reconnect flag
+  bool auto_reconnect_ = true;
+
+  // ----------------------------------------------------------
+  // Scan storage — MUST match cpp exactly
+  // ----------------------------------------------------------
+
+  static constexpr int MAX_SCAN = 8;
+
+  static esp_bd_addr_t scan_bda_[MAX_SCAN];
+  static char          scan_name_[MAX_SCAN][32];
+  static int8_t        scan_rssi_[MAX_SCAN];
+  static int           scan_count_;
 };
-

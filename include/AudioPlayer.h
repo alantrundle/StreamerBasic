@@ -20,6 +20,7 @@ int32_t pcm_data_callback(uint8_t* data, int32_t len);
 
 // ✅ NOW compiles correctly
 void onA2DPAudioState(esp_a2d_audio_state_t state, void*);
+void onA2DPConnectionState(esp_a2d_connection_state_t state, void* user);
 //void onA2DPConnectState(esp_a2d_connection_state_t state, void*);
 
 // ------------------------------------------------

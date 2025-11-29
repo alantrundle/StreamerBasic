@@ -76,8 +76,10 @@ void setup() {
   HttpStreamEngine::begin();
 
   a2dp.set_device_name("AT1053-Source");
+  a2dp.set_autoreconnection(true);
   a2dp.set_pcm_callback(pcm_data_callback);
   a2dp.set_audiostate_callback(onA2DPAudioState);
+  a2dp.set_connectionstate_callback(onA2DPConnectionState);
   a2dp.set_scan_callback(btScanCallback);
   a2dp.start();
 
