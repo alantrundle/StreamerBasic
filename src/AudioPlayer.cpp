@@ -1,6 +1,10 @@
 #include "AudioPlayer.h"
 #include "HttpStreamEngine.h"
 #include "AudioCore.h"
+#include "A2DPCore.h"
+
+#include "esp_a2dp_api.h"
+
 
 // --------------------------------------------------
 // Playlist
@@ -160,3 +164,16 @@ void AudioPlayer_Loop() {
 
   wasPlaying = playing;
 }
+
+int32_t pcm_data_callback(uint8_t* data, int32_t len) {
+  return AudioCore::get_pcm_data_a2dp(data, len);
+}
+
+void onA2DPAudioState(esp_a2d_audio_state_t state, void*) {
+  bool playing = (state == ESP_A2D_AUDIO_STATE_STARTED);
+  Serial.println("[A2DP] Audio Ready");
+  AudioCore::set_a2dp_audio_ready(playing);
+}
+
+
+

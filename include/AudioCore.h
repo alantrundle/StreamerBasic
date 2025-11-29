@@ -33,6 +33,32 @@ public:
 
   static bool decoder_paused;
 
+  enum PCMConsumer : uint8_t {
+  PCM_CONSUMER_A2DP = 0,
+  PCM_CONSUMER_I2S
+  };
+
+  static int32_t get_pcm_data(PCMConsumer consumer,
+                              uint8_t* data,
+                              int32_t bytes);
+
+  // Optional wrappers for convenience
+  static inline int32_t get_pcm_data_a2dp(uint8_t* d, int32_t b) {
+    return get_pcm_data(PCM_CONSUMER_A2DP, d, b);
+  }
+
+  static inline int32_t get_pcm_data_i2s(uint8_t* d, int32_t b) {
+    return get_pcm_data(PCM_CONSUMER_I2S, d, b);
+  }
+
+  // Output enable / readiness
+  static void set_i2s_output(bool enabled);
+  static void set_a2dp_audio_ready(bool ready);
+
+  static bool is_i2s_output_enabled();
+  static bool is_a2dp_audio_ready();
+
+
 private:
 
   static bool decoder_auto_paused;   // AUTO pause (buffer)

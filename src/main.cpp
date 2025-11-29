@@ -4,12 +4,15 @@
 #include "Config.h"
 #include "AudioCore.h"
 #include "HttpStreamEngine.h"
+#include "A2DPCore.h"
+
 
 #include "LVGLCore.h"
 #include "ui/ui.h"
 
-
 #include "AudioPlayer.h"
+
+A2DPCore a2dp;
 
 
 // ------------------------------------------------------------
@@ -39,6 +42,14 @@ static void connectWiFi() {
                 WiFi.localIP().toString().c_str());
 }
 
+void btScanCallback(int count, const char* const* names, const char* const* macs, const int8_t* rssis) {
+
+  if (count > 0) {
+    a2dp.connect_by_index(0);
+  }
+
+}
+
 // ------------------------------------------------------------
 // Arduino setup
 // ------------------------------------------------------------
@@ -60,9 +71,18 @@ void setup() {
     while (true) delay(1000);
   }
 
+
   // 3. HTTP streamer (NET buffers + task)
   HttpStreamEngine::begin();
 
+  a2dp.set_device_name("AT1053-Source");
+  a2dp.set_pcm_callback(pcm_data_callback);
+  a2dp.set_audiostate_callback(onA2DPAudioState);
+  a2dp.set_scan_callback(btScanCallback);
+  a2dp.start();
+
+  a2dp.start_scan(10);
+  
   //HttpStreamEngine::open(urls[0]);
   //HttpStreamEngine::play();
 }

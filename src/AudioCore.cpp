@@ -25,12 +25,12 @@ volatile CodecKind     feed_codec     = CODEC_UNKNOWN;
 bool AudioCore::decoder_paused = false;
 bool AudioCore::decoder_auto_paused = false;
 
-volatile bool i2s_output     = true;
-volatile bool a2dp_audio_ready = false;
+static volatile bool i2s_output     = true;
+static volatile bool a2dp_audio_ready = false;
 
 // ======================================================
-// SHARED PCM RING BUFFER
-// ======================================================
+// SHARED PCM RING BUFFER=
+// =====================================================
 
 EXT_RAM_ATTR static uint8_t* a2dp_buffer = nullptr;
 
@@ -42,6 +42,26 @@ static volatile size_t a2dp_buffer_fill    = 0;
 static portMUX_TYPE a2dp_mux = portMUX_INITIALIZER_UNLOCKED;
 
 TaskHandle_t i2STask;
+
+void AudioCore::set_i2s_output(bool enabled) {
+  portENTER_CRITICAL(&a2dp_mux);
+  i2s_output = enabled;
+  portEXIT_CRITICAL(&a2dp_mux);
+}
+
+void AudioCore::set_a2dp_audio_ready(bool ready) {
+  portENTER_CRITICAL(&a2dp_mux);
+  a2dp_audio_ready = ready;
+  portEXIT_CRITICAL(&a2dp_mux);
+}
+
+bool AudioCore::is_i2s_output_enabled() {
+  return i2s_output;
+}
+
+bool AudioCore::is_a2dp_audio_ready() {
+  return a2dp_audio_ready;
+}
 
 // ======================================================
 // Ring helpers
@@ -91,6 +111,82 @@ static inline void ring_write_pcm_shared(const uint8_t* src, size_t nbytes) {
 
   portEXIT_CRITICAL(&a2dp_mux);
 }
+
+int32_t AudioCore::get_pcm_data(PCMConsumer consumer,
+                                uint8_t* data,
+                                int32_t len) {
+  if (!data || len <= 0)
+    return 0;
+
+  // Gate by consumer readiness
+  if (consumer == PCM_CONSUMER_A2DP && !a2dp_audio_ready)
+    return 0;
+
+  if (consumer == PCM_CONSUMER_I2S && !i2s_output)
+    return 0;
+
+  portENTER_CRITICAL(&a2dp_mux);
+
+  // Re-check under lock (disconnect / stop can race)
+  if (consumer == PCM_CONSUMER_A2DP && !a2dp_audio_ready) {
+    portEXIT_CRITICAL(&a2dp_mux);
+    return 0;
+  }
+  if (consumer == PCM_CONSUMER_I2S && !i2s_output) {
+    portEXIT_CRITICAL(&a2dp_mux);
+    return 0;
+  }
+
+  const size_t cap = PCM_BUFFER_BYTES;
+  if (!a2dp_buffer || cap == 0) {
+    portEXIT_CRITICAL(&a2dp_mux);
+    return 0;
+  }
+
+  // Select correct read pointer
+  size_t* rd =
+    (consumer == PCM_CONSUMER_A2DP)
+      ? (size_t*)&a2dp_read_index
+      : (size_t*)&a2dp_read_index_i2s;
+
+  const size_t r0 = *rd;
+  const size_t w0 = a2dp_write_index;
+
+  size_t avail = ring_dist(r0, w0, cap);
+  if (avail == 0) {
+    portEXIT_CRITICAL(&a2dp_mux);
+    return 0;
+  }
+
+  size_t to_copy = (size_t)len;
+  if (to_copy > avail)
+    to_copy = avail;
+
+  // Optional: keep 16-bit stereo alignment happy
+  // to_copy &= ~0x03;
+
+  const size_t space_to_end = cap - r0;
+  const size_t first = (to_copy < space_to_end)
+                       ? to_copy
+                       : space_to_end;
+
+  memcpy(data, a2dp_buffer + r0, first);
+  if (first < to_copy) {
+    memcpy(data + first, a2dp_buffer, to_copy - first);
+  }
+
+  // Advance ONLY this consumer
+  *rd = (r0 + to_copy) % cap;
+
+  // Update shared fill based on slowest active reader
+  a2dp_buffer_fill =
+    ring_dist(rmin_active_locked(), a2dp_write_index, cap);
+
+  portEXIT_CRITICAL(&a2dp_mux);
+  return (int32_t)to_copy;
+}
+
+
 
 // ======================================================
 // Public helpers
@@ -282,87 +378,54 @@ void AudioCore::StopI2S() {
 }
 
 void AudioCore::i2sPlaybackTask(void* /*param*/) {
-  // Match your I²S DMA frame length (keep this = i2s_config.dma_buf_len)
+
   constexpr size_t FRAMES_PER_CHUNK = 256;
-  constexpr size_t BYTES_PER_FRAME  = 4;                  // L16 + R16
+  constexpr size_t BYTES_PER_FRAME  = 4;   // L16 + R16
   constexpr size_t CHUNK_BYTES      = FRAMES_PER_CHUNK * BYTES_PER_FRAME;
 
-  // Small staging buffer on stack (1 KB)
   uint8_t tempBuf[CHUNK_BYTES];
 
   for (;;) {
-    bool output_any = false;  // did we actually push audio this iteration?
 
-    // Fast exit if output is gated
+    // Output gated
     if (!i2s_output) {
-      // Not allowed to output right now → tiny nap to avoid busy spin
       vTaskDelay(pdMS_TO_TICKS(1));
       continue;
     }
 
-    // Snapshot indices once; compute availability without holding the lock lon
-    size_t read_idx_snapshot, write_idx_snapshot, avail;
-    portENTER_CRITICAL(&a2dp_mux);
-    read_idx_snapshot  = a2dp_read_index_i2s;
-    write_idx_snapshot = a2dp_write_index;
-    avail = ring_dist(read_idx_snapshot, write_idx_snapshot, A2DP_BUFFER_SIZE);
-    portEXIT_CRITICAL(&a2dp_mux);
+    // Pull PCM (exact chunk)
+    int32_t got = AudioCore::get_pcm_data(
+                    PCM_CONSUMER_I2S,
+                    tempBuf,
+                    CHUNK_BYTES);
 
-    if (avail < CHUNK_BYTES) {
-      // Not enough PCM yet; short, cooperative nap
+    if (got < (int32_t)CHUNK_BYTES) {
+      // Not enough PCM yet → wait
       vTaskDelay(pdMS_TO_TICKS(1));
       continue;
     }
 
-    // Copy CHUNK_BYTES from ring → tempBuf, handling wrap — outside the lock
-    const size_t first = std::min(CHUNK_BYTES, A2DP_BUFFER_SIZE - read_idx_snapshot);
-    memcpy(tempBuf, &a2dp_buffer[read_idx_snapshot], first);
-    if (first < CHUNK_BYTES) {
-      memcpy(tempBuf + first, &a2dp_buffer[0], CHUNK_BYTES - first);
-    }
-
-    // Now advance the I²S reader atomically and refresh shared fill
-    portENTER_CRITICAL(&a2dp_mux);
-    a2dp_read_index_i2s = (read_idx_snapshot + CHUNK_BYTES) % A2DP_BUFFER_SIZE;
-    a2dp_buffer_fill    = ring_dist(rmin_active_locked(), a2dp_write_index, A2DP_BUFFER_SIZE);
-    portEXIT_CRITICAL(&a2dp_mux);
-
-    // Push exactly one DMA chunk; short timeout to stay responsive
     size_t written = 0;
-    esp_err_t res = i2s_write(I2S_NUM_0, tempBuf, CHUNK_BYTES, &written, pdMS_TO_TICKS(5));
-    if (res == ESP_OK && written > 0) {
-      output_any = true;
-    }
 
-    // If the driver returned early, top off without blocking the system
+    // ✅ BLOCK until DMA has actually consumed time
     while (written < CHUNK_BYTES) {
       size_t w2 = 0;
-      res = i2s_write(I2S_NUM_0,
-                      tempBuf + written,
-                      CHUNK_BYTES - written,
-                      &w2,
-                      pdMS_TO_TICKS(5));
-      written += w2;
+      esp_err_t res = i2s_write(
+          I2S_NUM_0,
+          tempBuf + written,
+          CHUNK_BYTES - written,
+          &w2,
+          portMAX_DELAY);   // <-- THIS IS THE FIX
 
-      if (res == ESP_OK && w2 > 0) {
-        output_any = true;
-      }
-
-      // DMA saturated / nothing more written → brief backoff
-      if (w2 == 0) {
+      if (res != ESP_OK || w2 == 0) {
+        // Hardware stalled → short backoff
         vTaskDelay(pdMS_TO_TICKS(1));
         break;
       }
-    }
 
-    // Only back off if we didn’t really output anything this loop
-    if (!output_any) {
-      vTaskDelay(pdMS_TO_TICKS(1));
+      written += w2;
     }
-    // else: no explicit delay — time spent in i2s_write is enough,
-    // scheduler can preempt us as needed.
   }
-
 }
 
 
