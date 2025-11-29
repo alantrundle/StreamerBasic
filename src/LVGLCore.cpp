@@ -116,7 +116,7 @@ void lvgl_start_task() {
         vTaskDelayUntil(&last, period);  
       }
     },
-    "LVGL", 6144, nullptr, 1, nullptr, 1
+    "LVGL", 6144, nullptr, 3, nullptr, 1
   );
 }
 

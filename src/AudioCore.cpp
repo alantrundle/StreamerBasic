@@ -434,7 +434,7 @@ void AudioCore::i2sPlaybackTask(void* /*param*/) {
 // ======================================================
 void AudioCore::decodeTask(void*) {
 
-  constexpr int HI_PCT    = 90;
+  constexpr int HI_PCT    = 95;
   constexpr int LO_PCT    = 60;
   constexpr int PRIME_PCT = 25;
 
@@ -471,7 +471,7 @@ void AudioCore::decodeTask(void*) {
 
         priming        = true;
         AudioCore::decoder_auto_paused = false;
-        vTaskDelay(pdMS_TO_TICKS(5));
+        vTaskDelay(pdMS_TO_TICKS(10));
         continue;
       }
     }
@@ -481,7 +481,7 @@ void AudioCore::decodeTask(void*) {
     // --------------------------------------------------
     if (priming) {
       if (net_filled_slots() < (int)PRIME_SLOTS) {
-        vTaskDelay(5);
+        vTaskDelay(10);
         continue;
       }
       priming = false;
@@ -501,7 +501,7 @@ void AudioCore::decodeTask(void*) {
       AudioCore::decoder_auto_paused = false;
 
     if (AudioCore::decoder_paused || AudioCore::decoder_auto_paused) {
-      vTaskDelay(5);
+      vTaskDelay(10);
       continue;
     }
 
