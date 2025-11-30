@@ -130,7 +130,7 @@ void lvgl_init() {
     nullptr,
     LVGL_TASK_PRIORITY,               // ✅ KEEP LOW PRIORITY
     nullptr,
-    0
+    1
   );
 
   Serial.println("[LVGL] TFT setup done");

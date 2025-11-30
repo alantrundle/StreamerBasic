@@ -246,6 +246,19 @@ void A2DPCore::gap_cb(esp_bt_gap_cb_event_t event,
 // ------------------------------------------------------------
 // A2DP callback
 // ------------------------------------------------------------
+static esp_timer_handle_t s_a2dp_kick_timer = nullptr;
+
+static void a2dp_kick_cb(void* arg)
+{
+  esp_err_t r = esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_CHECK_SRC_RDY);
+  if (r != ESP_OK) {
+    Serial.printf("[A2DP] ❌ CHECK_SRC_RDY failed: %s\n",
+                  esp_err_to_name(r));
+  } else {
+    Serial.println("[A2DP] ✅ CHECK_SRC_RDY sent (deferred)");
+  }
+}
+
 
 void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
                        esp_a2d_cb_param_t* param) {
@@ -253,67 +266,94 @@ void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
 
   switch (event) {
 
+    // --------------------------------------------------
+    // CONNECTION STATE
+    // --------------------------------------------------
     case ESP_A2D_CONNECTION_STATE_EVT: {
-      esp_a2d_connection_state_t st = param->conn_stat.state;
+      esp_a2d_connection_state_t s = param->conn_stat.state;
 
-      self_->connected_ = (st == ESP_A2D_CONNECTION_STATE_CONNECTED); 
-      Serial.printf("[A2DP] 🔗 Connection state = %d\n", st);
+      Serial.printf("[A2DP] 🔗 Connection state = %d\n", s);
 
-      // ✅ unblock manual scans once connected
-      if (st == ESP_A2D_CONNECTION_STATE_CONNECTED) {
-        self_->connected_ = true;
+      if (s == ESP_A2D_CONNECTION_STATE_CONNECTED) {
+
+        self_->connected_         = true;
         self_->block_manual_scan_ = false;
 
-        esp_avrc_tg_register_callback(avrc_tg_cb);
-        esp_avrc_tg_init();
-      }
+        // ✅ Defer CHECK_SRC_RDY by 100 ms (SAFE)
+        if (!s_a2dp_kick_timer) {
+          esp_timer_create_args_t args = {};
+          args.callback = &a2dp_kick_cb;
+          args.name = "a2dp_kick";
 
-      if (st == ESP_A2D_CONNECTION_STATE_DISCONNECTED) { 
+          esp_timer_create(&args, &s_a2dp_kick_timer);
+        }
+
+        esp_timer_start_once(s_a2dp_kick_timer, 100000); // 100ms
+      }
+      else if (s == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
+
         self_->connected_ = false;
-      }
-
-      if (!self_->auto_reconnect_ &&
-          st == ESP_A2D_CONNECTION_STATE_CONNECTED) {
-
-        Serial.println("[A2DP] 🚫 Auto-reconnect disabled — disconnecting");
-        esp_a2d_source_disconnect(param->conn_stat.remote_bda);
-        
-        break;
-      }
-
-      if (st == ESP_A2D_CONNECTION_STATE_CONNECTED) {
-        esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_CHECK_SRC_RDY);
-        esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_START);
+        AudioCore::set_a2dp_audio_ready(false);
       }
 
       if (self_->conn_cb_) {
-        self_->conn_cb_(st, nullptr);
+        self_->conn_cb_(s, nullptr);
       }
       break;
     }
 
+    // --------------------------------------------------
+    // MEDIA CONTROL ACKS
+    // --------------------------------------------------
+    case ESP_A2D_MEDIA_CTRL_ACK_EVT: {
+
+      auto cmd = param->media_ctrl_stat.cmd;
+      auto st  = param->media_ctrl_stat.status;
+
+      if (cmd == ESP_A2D_MEDIA_CTRL_CHECK_SRC_RDY) {
+
+        if (st == ESP_A2D_MEDIA_CTRL_ACK_SUCCESS) {
+
+          Serial.println("[A2DP] ▶ Source ready — starting stream");
+
+          esp_err_t r = esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_START);
+          if (r != ESP_OK) {
+            Serial.printf("[A2DP] ❌ START failed: %s\n",
+                          esp_err_to_name(r));
+          }
+
+        } else {
+          Serial.printf("[A2DP] SRC not ready (ack=%d)\n", (int)st);
+        }
+      }
+      else if (cmd == ESP_A2D_MEDIA_CTRL_START) {
+        Serial.printf("[A2DP] ▶ START ack=%d\n", (int)st);
+      }
+      break;
+    }
+
+    // --------------------------------------------------
+    // AUDIO STREAM STATE
+    // --------------------------------------------------
     case ESP_A2D_AUDIO_STATE_EVT: {
-      esp_a2d_audio_state_t st = param->audio_stat.state;
+      esp_a2d_audio_state_t s = param->audio_stat.state;
 
       AudioCore::set_a2dp_audio_ready(
-        st == ESP_A2D_AUDIO_STATE_STARTED
+        s == ESP_A2D_AUDIO_STATE_STARTED
       );
 
       if (self_->audio_cb_) {
-        self_->audio_cb_(st, nullptr);
+        self_->audio_cb_(s, nullptr);
       }
       break;
     }
-
-    case ESP_A2D_MEDIA_CTRL_ACK_EVT:
-      Serial.printf("[A2DP] ▶ Media ctrl ack %d\n",
-                    param->media_ctrl_stat.cmd);
-      break;
 
     default:
       break;
   }
 }
+
+
 
 // ------------------------------------------------------------
 // AVRCP TG (unchanged)

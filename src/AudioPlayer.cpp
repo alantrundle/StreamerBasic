@@ -169,7 +169,7 @@ void AudioPlayer_Loop() {
 
 int32_t pcm_data_callback(uint8_t* data, int32_t len) {
 
-  if (!AudioCore::is_a2dp_output_enabled())
+  if (!AudioCore::is_a2dp_output_enabled() && !AudioCore::is_a2dp_audio_ready())
     return 0;
 
   return AudioCore::get_pcm_data_a2dp(data, len);

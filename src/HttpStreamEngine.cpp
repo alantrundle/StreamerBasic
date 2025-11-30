@@ -219,7 +219,7 @@ void HttpStreamEngine::httpFillTask(void*) {
     }
 
     http.setReuse(false);            // ✅ IMPORTANT
-    http.setTimeout(3000);
+    http.setTimeout(500);
     http.setConnectTimeout(4000);
 
     int code = http.GET();
@@ -254,7 +254,7 @@ void HttpStreamEngine::httpFillTask(void*) {
     while (stream_running && g_play_session == my_session) {
 
       if (netBufFilled[netWrite]) {
-        vTaskDelay(1);
+        vTaskDelay(2);
         continue;
       }
 
@@ -412,7 +412,7 @@ void HttpStreamEngine::httpFillTask(void*) {
       Serial.println("[HTTP] ✅ Decoder drained — playback finished");
     }
 
-    vTaskDelay(5);
+    vTaskDelay(20);
   }
 }
 

@@ -11,6 +11,9 @@
 
 #include "AudioPlayer.h"
 
+
+#include "sdkconfig.h"
+
 A2DPCore a2dp;
 
 
@@ -80,6 +83,7 @@ void setup() {
   a2dp.set_connectionstate_callback(onA2DPConnectionState);
   a2dp.set_scan_callback(btScanCallback);
   a2dp.start();
+
   
   //HttpStreamEngine::open(urls[0]);
   //HttpStreamEngine::play();

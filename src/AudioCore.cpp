@@ -480,99 +480,108 @@ void AudioCore::i2sPlaybackTask(void* /*param*/) {
 // ======================================================
 void AudioCore::decodeTask(void*) {
 
-  const TickType_t PERIOD = pdMS_TO_TICKS(1);   // ✅ critical
-  TickType_t last_wake = xTaskGetTickCount();
+  constexpr int HI_PCT    = 80;
+  constexpr int LO_PCT    = 30;
+  constexpr int PRIME_PCT = 30;
 
-  const size_t HI_BYTES    = (PCM_BUFFER_BYTES * HI_PCT) / 100;
-  const size_t LO_BYTES    = (PCM_BUFFER_BYTES * LO_PCT) / 100;
+  const size_t HI_BYTES   = (PCM_BUFFER_BYTES * HI_PCT) / 100;
+  const size_t LO_BYTES   = (PCM_BUFFER_BYTES * LO_PCT) / 100;
   const size_t PRIME_SLOTS = (NUM_BUFFERS * PRIME_PCT) / 100;
 
-  uint32_t last_session = 0xFFFFFFFF;
-  bool priming  = true;
-  bool drained  = false;
+  //CodecKind active_codec = CODEC_UNKNOWN;
+  uint32_t  last_session = 0xFFFFFFFF;
+  bool      priming      = true;
+  bool      drained      = false;   // ✅ NEW: EOS guard
 
   for (;;) {
 
-    // ✅ phase-locked scheduler
-    vTaskDelayUntil(&last_wake, PERIOD);
-
     // --------------------------------------------------
-    // Stream inactive → drain decoder ONCE
+    // Stream inactive → DRAIN, NOT ABORT  ✅ FIXED
     // --------------------------------------------------
     if (!HttpStreamEngine::stream_running) {
 
-      if (net_filled_slots() == 0) {
+      // ✅ If NET still has data, KEEP decoding
+      if (net_filled_slots() > 0) {
+        drained = false;
+        // fall through to normal decode path
+      }
+      else {
+        // ✅ NET empty → flush decoder ONCE
         if (!drained) {
-          if (active_codec == CODEC_MP3) mp3.write(nullptr, 0);
-          else if (active_codec == CODEC_AAC) aac.write(nullptr, 0);
+          if (active_codec == CODEC_MP3)
+            mp3.write(nullptr, 0);
+          else if (active_codec == CODEC_AAC)
+            aac.write(nullptr, 0);
           drained = true;
         }
 
-        priming = true;
-        decoder_auto_paused = false;
+        priming        = true;
+        AudioCore::decoder_auto_paused = false;
+        vTaskDelay(pdMS_TO_TICKS(10));
         continue;
       }
-
-      drained = false;  // NET still has data
     }
 
     // --------------------------------------------------
-    // Priming phase
+    // NET priming phase (unchanged)
     // --------------------------------------------------
     if (priming) {
-      if (net_filled_slots() < (int)PRIME_SLOTS)
+      if (net_filled_slots() < (int)PRIME_SLOTS) {
+        vTaskDelay(10);
         continue;
-
+      }
       priming = false;
       drained = false;
     }
 
     // --------------------------------------------------
-    // PCM hysteresis
+    // PCM buffer hysteresis (unchanged)
     // --------------------------------------------------
-    size_t fill;
     portENTER_CRITICAL(&a2dp_mux);
-    fill = a2dp_buffer_fill;
+    size_t fill = a2dp_buffer_fill;
     portEXIT_CRITICAL(&a2dp_mux);
 
-    if (!decoder_auto_paused && fill >= HI_BYTES)
-      decoder_auto_paused = true;
-    else if (decoder_auto_paused && fill <= LO_BYTES)
-      decoder_auto_paused = false;
+    if (!AudioCore::decoder_auto_paused && fill >= HI_BYTES)
+      AudioCore::decoder_auto_paused = true;
+    else if (AudioCore::decoder_auto_paused && fill <= LO_BYTES)
+      AudioCore::decoder_auto_paused = false;
 
-    if (decoder_paused || decoder_auto_paused)
-      continue;
-
-    // --------------------------------------------------
-    // Wait for NET slot
-    // --------------------------------------------------
-    if (!HttpStreamEngine::netBufFilled[HttpStreamEngine::netRead])
-      continue;
-
-    const int slot = HttpStreamEngine::netRead;
-
-    uint8_t*  ptr    = HttpStreamEngine::netBuffers[slot];
-    uint16_t  bytes  = HttpStreamEngine::netSize[slot];
-    uint16_t  offset = HttpStreamEngine::netOffset[slot];
-    uint32_t  sess   = HttpStreamEngine::netSess[slot];
-    uint8_t   tag    = HttpStreamEngine::netTag[slot];
-
-    // --------------------------------------------------
-    // New session → hard reset
-    // --------------------------------------------------
-    if (sess != last_session) {
-      if (active_codec == CODEC_MP3) mp3.end();
-      else if (active_codec == CODEC_AAC) aac.end();
-
-      active_codec = CODEC_UNKNOWN;
-      last_session = sess;
-      priming = true;
-      drained = false;
+    if (AudioCore::decoder_paused || AudioCore::decoder_auto_paused) {
+      vTaskDelay(5);
       continue;
     }
 
     // --------------------------------------------------
-    // Codec selection
+    // Wait for NET slot (unchanged)
+    // --------------------------------------------------
+    if (!HttpStreamEngine::netBufFilled[HttpStreamEngine::netRead]) {
+      vTaskDelay(1);
+      continue;
+    }
+
+    const int slot = HttpStreamEngine::netRead;
+
+    uint8_t* ptr    = HttpStreamEngine::netBuffers[slot];
+    uint16_t bytes  = HttpStreamEngine::netSize[slot];
+    uint16_t offset = HttpStreamEngine::netOffset[slot];
+    uint32_t sess   = HttpStreamEngine::netSess[slot];
+    uint8_t  tag    = HttpStreamEngine::netTag[slot];
+
+    // --------------------------------------------------
+    // New session → hard reset (unchanged)
+    // --------------------------------------------------
+    if (sess != last_session) {
+      if (active_codec == CODEC_MP3) mp3.end();
+      if (active_codec == CODEC_AAC) aac.end();
+      active_codec = CODEC_UNKNOWN;
+      last_session = sess;
+      priming      = true;
+      drained      = false;
+      continue;
+    }
+
+    // --------------------------------------------------
+    // Codec selection (unchanged)
     // --------------------------------------------------
     if (tag == SLOT_MP3 && active_codec != CODEC_MP3) {
       mp3.begin();
@@ -586,29 +595,31 @@ void AudioCore::decodeTask(void*) {
     }
 
     // --------------------------------------------------
-    // Apply offset + decode
+    // Apply offset (unchanged)
     // --------------------------------------------------
     if (offset < bytes) {
       ptr   += offset;
       bytes -= offset;
     }
 
+    // --------------------------------------------------
+    // Feed decoder (unchanged)
+    // --------------------------------------------------
     if (bytes) {
-      if (active_codec == CODEC_MP3) mp3.write(ptr, bytes);
-      else if (active_codec == CODEC_AAC) aac.write(ptr, bytes);
+      if (active_codec == CODEC_MP3)
+        mp3.write(ptr, bytes);
+      else if (active_codec == CODEC_AAC)
+        aac.write(ptr, bytes);
     }
 
     // --------------------------------------------------
-    // Release NET slot
+    // Release NET slot (unchanged)
     // --------------------------------------------------
     HttpStreamEngine::netBufFilled[slot] = false;
-    HttpStreamEngine::netSize[slot] = 0;
+    HttpStreamEngine::netSize[slot]      = 0;
     HttpStreamEngine::netRead =
-      (slot + 1) % NUM_BUFFERS;
+      (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
 
-    // ✅ give Wi-Fi/Bluetooth a chance
-    taskYIELD();
+    vTaskDelay(5);   // ✅ correct placement preserved
   }
 }
-
-
