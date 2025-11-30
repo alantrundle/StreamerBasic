@@ -65,7 +65,6 @@ void AudioPlayer_Play() {
     if (HttpStreamEngine::isAlive()) {
       // Soft resume
       AudioCore::decoder_paused = false;
-      AudioCore::set_a2dp_output(true);
       AudioCore::StartI2S();
       isPaused = false;
       return;
@@ -107,6 +106,9 @@ void AudioPlayer_Stop() {
   isPaused    = false;
 
   AudioCore::decoder_paused = false;
+  AudioCore::set_a2dp_output(false);
+  AudioCore::set_a2dp_output(false);
+
   HttpStreamEngine::stop();
 }
 
@@ -169,9 +171,30 @@ void AudioPlayer_Loop() {
 
 int32_t pcm_data_callback(uint8_t* data, int32_t len) {
 
-  if (!AudioCore::is_a2dp_output_enabled() && !AudioCore::is_a2dp_audio_ready())
-    return 0;
+  static int warmup_frames = 0;
+  constexpr int WARMUP_FRAMES = 3;   // 2–4 is enough
 
+  // --------------------------------------------------
+  // Output disabled → send silence (never block)
+  // --------------------------------------------------
+  if (!AudioCore::is_a2dp_output_enabled()) {
+    memset(data, 0, len);
+    warmup_frames = 0;   // re-prime when output re-enables
+    return len;
+  }
+
+  // --------------------------------------------------
+  // A2DP encoder warm-up (silence priming)
+  // --------------------------------------------------
+  if (warmup_frames < WARMUP_FRAMES) {
+    memset(data, 0, len);
+    warmup_frames++;
+    return len;
+  }
+
+  // --------------------------------------------------
+  // Normal PCM supply
+  // --------------------------------------------------
   return AudioCore::get_pcm_data_a2dp(data, len);
 }
 
@@ -182,7 +205,6 @@ void onA2DPConnectionState(esp_a2d_connection_state_t state, void* user) {
     Serial.println("[APP] ✅ Sink Connected — requesting media start");
   }
 }
-
 
 void onA2DPAudioState(esp_a2d_audio_state_t state, void* user) {
   Serial.printf("[APP] A2DP audio state = %d\n", state);

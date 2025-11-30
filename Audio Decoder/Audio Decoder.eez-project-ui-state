@@ -1,6 +1,6 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/3",
+    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/1",
     "selectedActionObject": "[Audio Decoder.eez-project]:/actions/7",
     "selectedGlobalVariableObject": "[Audio Decoder.eez-project]:/variables/globalVariables/0",
     "subnavigationSelectedItems": {
@@ -34,6 +34,7 @@
           },
           {
             "type": "border",
+            "selected": 2,
             "size": 240,
             "location": "right",
             "children": [
@@ -191,21 +192,10 @@
             {
               "type": "tabset",
               "id": "EDITORS",
-              "weight": 65,
+              "weight": 29.641025641025642,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
-                {
-                  "type": "tab",
-                  "id": "#4c9b042c-7d4a-4c47-8120-93da6b6336b1",
-                  "name": "Bluetooth",
-                  "component": "editor",
-                  "config": {
-                    "objectPath": "[Audio Decoder.eez-project]:/userPages/3",
-                    "permanent": false
-                  },
-                  "icon": "svg:page"
-                },
                 {
                   "type": "tab",
                   "id": "#b736f4c1-4726-484c-8544-0d52810023ab",
@@ -235,7 +225,7 @@
             {
               "type": "row",
               "id": "#ee490f69-1e5b-4775-84bf-cd7d11f35d3d",
-              "weight": 20,
+              "weight": 55.35897435897436,
               "children": [
                 {
                   "type": "tabset",
@@ -559,7 +549,8 @@
                       "component": "bitmaps",
                       "enableClose": false
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -1098,6 +1089,28 @@
         "secondToPx": 200,
         "scrollLeft": 0
       }
+    },
+    "[Audio Decoder.eez-project]:/userPages/4[flow-state]": {
+      "selection": {
+        "0": {
+          "0": {
+            "$selected": true
+          }
+        }
+      },
+      "transform": {
+        "translate": {
+          "x": -200,
+          "y": -179
+        },
+        "scale": 1
+      },
+      "timeline": {
+        "isEditorActive": false,
+        "position": 0,
+        "secondToPx": 200,
+        "scrollLeft": 0
+      }
     }
   },
   "activeOutputSection": 0,
@@ -1115,9 +1128,9 @@
   "lvglPart": "MAIN",
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
-    "POSITION AND SIZE",
-    "LAYOUT",
-    "TEXT"
+    "TEXT",
+    "BACKGROUND",
+    "MISCELLANEOUS"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,

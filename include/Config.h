@@ -36,8 +36,9 @@ constexpr int      STALL_MAX_RETRIES      = 10;
 // Decode cadence
 // ------------------------------
 constexpr int HI_PCT    = 90;
-constexpr int LO_PCT    = 30;
-constexpr int PRIME_PCT = 10;
+constexpr int LO_PCT    = 70;
+constexpr int PRIME_PCT = 5;
+constexpr int MIN_A2DP_PCT = 10;   // ✅ NEW
 
 // xTask Priorities
 constexpr int DECODER_TASK_PRIORITY = 4;

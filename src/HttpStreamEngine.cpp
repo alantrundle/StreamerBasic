@@ -204,7 +204,7 @@ void HttpStreamEngine::httpFillTask(void*) {
 
     // ---------------- IDLE ----------------
     if (!stream_running || !g_url_open) {
-      vTaskDelay(10);
+      vTaskDelay(30);
       continue;
     }
 
@@ -254,7 +254,7 @@ void HttpStreamEngine::httpFillTask(void*) {
     while (stream_running && g_play_session == my_session) {
 
       if (netBufFilled[netWrite]) {
-        vTaskDelay(2);
+        vTaskDelay(20);
         continue;
       }
 
@@ -283,7 +283,7 @@ void HttpStreamEngine::httpFillTask(void*) {
           stall_deadline = millis() + STALL_RETRY_TIMEOUT_MS;
         }
 
-        vTaskDelay(2);
+        vTaskDelay(100);
         continue;
       }
 

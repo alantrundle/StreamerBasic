@@ -55,7 +55,7 @@ void lvgl_init() {
   lv_display_set_flush_cb(lv_disp, my_flush);
 
   // ✅ Larger buffers = fewer flushes
-  const int lines = 80;  // tuned: reduces stripe effect heavily
+  const int lines = 100;  // tuned: reduces stripe effect heavily
   const size_t bytes =
     (size_t)TFT_HOR_RES * lines * sizeof(lv_color_t);
 
