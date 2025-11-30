@@ -94,8 +94,8 @@ void A2DPCore::start() {
     Serial.println("[A2DP] PCM callback registered");
   }
 
-  esp_avrc_tg_register_callback(avrc_tg_cb);
-  esp_avrc_tg_init();
+  //esp_avrc_tg_register_callback(avrc_tg_cb);
+  //esp_avrc_tg_init();
 
   esp_a2d_source_init();
 
@@ -263,6 +263,9 @@ void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
       if (st == ESP_A2D_CONNECTION_STATE_CONNECTED) {
         self_->connected_ = true;
         self_->block_manual_scan_ = false;
+
+        esp_avrc_tg_register_callback(avrc_tg_cb);
+        esp_avrc_tg_init();
       }
 
       if (st == ESP_A2D_CONNECTION_STATE_DISCONNECTED) { 

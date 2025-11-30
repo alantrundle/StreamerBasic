@@ -115,13 +115,11 @@ void lvgl_init() {
 
         ui_update_stats_wifi(WiFi.status(), WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
 
-         
-
-      if (AudioCore::getMP3Info(info)) {
-        ui_update_stats_decoder(info.codec, info.samplerate, info.channels, info.kbps);
-      } else {
-        ui_update_stats_decoder(0, 0, 0, 0);
-      }
+        if (AudioCore::getMP3Info(info)) {
+          ui_update_stats_decoder(info.codec, info.samplerate, info.channels, info.kbps);
+        } else {
+          ui_update_stats_decoder(0, 0, 0, 0);
+        }
 
        vTaskDelay(pdMS_TO_TICKS(20));
 

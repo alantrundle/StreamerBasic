@@ -9,7 +9,7 @@ static const char* WIFI_PASS = "cdf45424e4";
 // NET / HTTP buffering
 // ------------------------------
 #define MAX_CHUNK_SIZE 2048
-#define NUM_BUFFERS    64
+#define NUM_BUFFERS   128
 
 // ✅ NEW robust stall handling
 constexpr uint32_t STALL_RETRY_TIMEOUT_MS = 800;
@@ -36,11 +36,11 @@ constexpr int      STALL_MAX_RETRIES      = 10;
 // Decode cadence
 // ------------------------------
 constexpr int HI_PCT    = 90;
-constexpr int LO_PCT    = 40;
-constexpr int PRIME_PCT = 5;
+constexpr int LO_PCT    = 60;
+constexpr int PRIME_PCT = 75;
 
 // xTask Priorities
 constexpr int DECODER_TASK_PRIORITY = 2;
 constexpr int HTTP_TASK_PRIORITY    = 1;
 constexpr int LVGL_TASK_PRIORITY    = 1;
-constexpr int I2S_TASK_PRIORITY     = 1;
+constexpr int I2S_TASK_PRIORITY     = 2;
