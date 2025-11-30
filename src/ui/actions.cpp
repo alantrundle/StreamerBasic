@@ -3,8 +3,11 @@
 
 #include "AudioPlayer.h"  
 
-bool isPaused = false;
+#include "A2DPCore.h"  
 
+extern A2DPCore a2dp;
+
+bool isPaused = false;
 
 extern void AudioPlayer_Play();
 extern void AudioPlayer_Pause();
@@ -36,6 +39,15 @@ static void goto_player_view()
     }
 }
 
+static void goto_bluetooth_view()
+{
+    if (objects.player) {
+        lv_scr_load_anim( objects.bluetooth, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 200, 0, false);                 
+    }
+}
+
+
+
 // -----------------------------------------------------------------------------
 // action_back: Assigned in EEZ Studio for “Back” buttons
 // -----------------------------------------------------------------------------
@@ -53,6 +65,11 @@ void action_goto_stats_view(lv_event_t * e){
 void action_goto_player_view(lv_event_t * e) {
     LV_UNUSED(e);   // avoid compiler warnings
     goto_player_view();
+}
+
+void action_goto_bluetooth_view(lv_event_t * e) {
+    LV_UNUSED(e);   // avoid compiler warnings
+    goto_bluetooth_view();
 }
 
 void action_player_play_pause(lv_event_t * e) {
@@ -77,5 +94,15 @@ void action_player_next(lv_event_t * e) {
     AudioPlayer_Next();
 }
 
+// Blueooth View
+void action_bluetooth_startscan(lv_event_t * e) {
 
+    if(a2dp.isScanning()) {
+        lv_label_set_text(objects.bt_btn_start, "Stop Scan");
+        a2dp.stop_scan();
+    } else if (!a2dp.scan_blocked() && !a2dp.isScanning() && !a2dp.isConnected()) {
+        lv_label_set_text(objects.bt_btn_start, "Start Scan");
+        a2dp.start_scan(10);
+    }
 
+}

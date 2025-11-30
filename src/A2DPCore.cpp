@@ -1,7 +1,7 @@
 #include "A2DPCore.h"
 #include <string.h>
 
-#include "AudioCore.h"   // for set_a2dp_audio_ready()
+#include "AudioCore.h"
 
 // ------------------------------------------------------------
 // Static storage
@@ -99,7 +99,26 @@ void A2DPCore::start() {
 
   esp_a2d_source_init();
 
+  // ✅ NEW: block manual scans during auto-reconnect window ONLY
+  if (auto_reconnect_) {
+    block_manual_scan_ = true;
+    autoreconnect_start_ms_ = millis();
+  }
+
   Serial.println("[A2DP] ✅ Source ready");
+}
+
+// ------------------------------------------------------------
+// Loop (AUTO-RECONNECT SCAN UNBLOCK ONLY)
+// ------------------------------------------------------------
+
+void A2DPCore::loop() {
+  if (!block_manual_scan_) return;
+
+  if (millis() - autoreconnect_start_ms_ >= 5000) {
+    block_manual_scan_ = false;
+    Serial.println("[A2DP] 🔓 Manual scan unblocked (auto-reconnect done)");
+  }
 }
 
 // ------------------------------------------------------------
@@ -107,7 +126,15 @@ void A2DPCore::start() {
 // ------------------------------------------------------------
 
 void A2DPCore::start_scan(uint32_t duration_seconds) {
+
+  // ✅ ONLY behavior change (as requested)
+  if (block_manual_scan_) {
+    Serial.println("[A2DP] 🚫 Scan blocked (auto-reconnect running)");
+    return;
+  }
+
   scan_count_ = 0;
+  scanning_   = true;    // ✅ ADD THIS
   Serial.printf("[BT] 🔍 Scanning (%u sec)...\n", duration_seconds);
 
   esp_bt_gap_start_discovery(
@@ -115,6 +142,13 @@ void A2DPCore::start_scan(uint32_t duration_seconds) {
     duration_seconds,
     0
   );
+}
+
+void A2DPCore::stop_scan() {
+
+  Serial.println("[BT] ⏹ Stopping discovery");
+
+  esp_bt_gap_cancel_discovery();
 }
 
 void A2DPCore::connect_by_index(int index) {
@@ -129,7 +163,7 @@ void A2DPCore::connect_by_index(int index) {
 }
 
 // ------------------------------------------------------------
-// GAP callback
+// GAP callback (UNCHANGED)
 // ------------------------------------------------------------
 
 void A2DPCore::gap_cb(esp_bt_gap_cb_event_t event,
@@ -180,8 +214,8 @@ void A2DPCore::gap_cb(esp_bt_gap_cb_event_t event,
         Serial.printf(
           "[BT] ✅ Scan complete (%d device%s)\n",
           scan_count_,
-          scan_count_ == 1 ? "" : "s"
-        );
+          scan_count_ == 1 ? "" : "s");
+          self_->scanning_ = false;   // ✅ ADD THIS
 
         if (self_->scan_cb_) {
           static const char* names[MAX_SCAN];
@@ -210,7 +244,7 @@ void A2DPCore::gap_cb(esp_bt_gap_cb_event_t event,
 }
 
 // ------------------------------------------------------------
-// A2DP callback (connection + audio state)
+// A2DP callback
 // ------------------------------------------------------------
 
 void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
@@ -222,19 +256,29 @@ void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
     case ESP_A2D_CONNECTION_STATE_EVT: {
       esp_a2d_connection_state_t st = param->conn_stat.state;
 
+      self_->connected_ = (st == ESP_A2D_CONNECTION_STATE_CONNECTED); 
       Serial.printf("[A2DP] 🔗 Connection state = %d\n", st);
 
-      // ❗ ONLY behavior change: optional auto-reconnect block
+      // ✅ unblock manual scans once connected
+      if (st == ESP_A2D_CONNECTION_STATE_CONNECTED) {
+        self_->connected_ = true;
+        self_->block_manual_scan_ = false;
+      }
+
+      if (st == ESP_A2D_CONNECTION_STATE_DISCONNECTED) { 
+        self_->connected_ = false;
+      }
+
       if (!self_->auto_reconnect_ &&
           st == ESP_A2D_CONNECTION_STATE_CONNECTED) {
 
         Serial.println("[A2DP] 🚫 Auto-reconnect disabled — disconnecting");
         esp_a2d_source_disconnect(param->conn_stat.remote_bda);
+        
         break;
       }
 
       if (st == ESP_A2D_CONNECTION_STATE_CONNECTED) {
-        Serial.println("[A2DP] ✅ Connected — starting media");
         esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_CHECK_SRC_RDY);
         esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_START);
       }
@@ -247,8 +291,6 @@ void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
 
     case ESP_A2D_AUDIO_STATE_EVT: {
       esp_a2d_audio_state_t st = param->audio_stat.state;
-
-      Serial.printf("[A2DP] 🔊 Audio state = %d\n", st);
 
       AudioCore::set_a2dp_audio_ready(
         st == ESP_A2D_AUDIO_STATE_STARTED
@@ -271,7 +313,7 @@ void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
 }
 
 // ------------------------------------------------------------
-// AVRCP TG (stub)
+// AVRCP TG (unchanged)
 // ------------------------------------------------------------
 
 void A2DPCore::avrc_tg_cb(esp_avrc_tg_cb_event_t,

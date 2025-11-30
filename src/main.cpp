@@ -6,7 +6,6 @@
 #include "HttpStreamEngine.h"
 #include "A2DPCore.h"
 
-
 #include "LVGLCore.h"
 #include "ui/ui.h"
 
@@ -71,7 +70,6 @@ void setup() {
     while (true) delay(1000);
   }
 
-
   // 3. HTTP streamer (NET buffers + task)
   HttpStreamEngine::begin();
 
@@ -82,8 +80,6 @@ void setup() {
   a2dp.set_connectionstate_callback(onA2DPConnectionState);
   a2dp.set_scan_callback(btScanCallback);
   a2dp.start();
-
-  a2dp.start_scan(10);
   
   //HttpStreamEngine::open(urls[0]);
   //HttpStreamEngine::play();
@@ -92,10 +88,16 @@ void setup() {
 // ------------------------------------------------------------
 // Arduino loop (control plane only)
 // ------------------------------------------------------------
+static bool scan_started = false;
 
 void loop() {
 
-  AudioPlayer_Loop();
+    a2dp.loop();
+    AudioPlayer_Loop();
 
-  delay(100);
-}
+    //if (!a2dp.isConnected() && !a2dp.scan_blocked() && !scan_started) {
+    //    a2dp.start_scan(10);
+    //    scan_started = true;
+    //}
+
+  }

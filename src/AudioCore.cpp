@@ -26,7 +26,11 @@ bool AudioCore::decoder_paused = false;
 bool AudioCore::decoder_auto_paused = false;
 
 static volatile bool i2s_output     = true;
+static volatile bool a2dp_output     = false;
 static volatile bool a2dp_audio_ready = false;
+
+
+CodecKind active_codec = CODEC_UNKNOWN;
 
 // ======================================================
 // SHARED PCM RING BUFFER=
@@ -49,6 +53,12 @@ void AudioCore::set_i2s_output(bool enabled) {
   portEXIT_CRITICAL(&a2dp_mux);
 }
 
+void AudioCore::set_a2dp_output(bool enabled) {
+  portENTER_CRITICAL(&a2dp_mux);
+  a2dp_output = enabled;
+  portEXIT_CRITICAL(&a2dp_mux);
+}
+
 void AudioCore::set_a2dp_audio_ready(bool ready) {
   portENTER_CRITICAL(&a2dp_mux);
   a2dp_audio_ready = ready;
@@ -57,6 +67,10 @@ void AudioCore::set_a2dp_audio_ready(bool ready) {
 
 bool AudioCore::is_i2s_output_enabled() {
   return i2s_output;
+}
+
+bool AudioCore::is_a2dp_output_enabled() {
+  return a2dp_output;
 }
 
 bool AudioCore::is_a2dp_audio_ready() {
@@ -263,6 +277,38 @@ static void setupI2S() {
   }
 }
 
+bool AudioCore::getMP3Info(MP3StatusInfo& out)
+{
+    // No valid decoded info yet
+    if (currentMP3Info.samplerate == 0) {
+        return false;
+    }
+
+    // Atomic snapshot (volatile-safe)
+    portENTER_CRITICAL(&a2dp_mux);
+
+    switch(active_codec) {
+      case 0:
+        out.codec = "UNKNOWN";
+        break;
+      case 1:
+        out.codec = "MP3";
+        break;
+      case 2:
+        out.codec = "AAC";
+        break;
+    }
+
+    out.samplerate = currentMP3Info.samplerate;
+    out.kbps       = currentMP3Info.kbps;
+    out.channels   = currentMP3Info.channels;
+    out.layer      = currentMP3Info.layer;
+
+    portEXIT_CRITICAL(&a2dp_mux);
+
+    return true;
+}
+
 // ======================================================
 // Helix callbacks — EXACT
 // ======================================================
@@ -344,7 +390,7 @@ bool AudioCore::init() {
       "DECODE",
       8192,
       nullptr,
-      2,
+      DECODER_TASK_PRIORITY,
       nullptr,
       1);
 
@@ -354,7 +400,7 @@ bool AudioCore::init() {
       "I2S",
       4096,
       nullptr,
-      4,
+      I2S_TASK_PRIORITY,
       &i2STask,
       1);
 
@@ -434,15 +480,12 @@ void AudioCore::i2sPlaybackTask(void* /*param*/) {
 // ======================================================
 void AudioCore::decodeTask(void*) {
 
-  constexpr int HI_PCT    = 90;
-  constexpr int LO_PCT    = 50;
-  constexpr int PRIME_PCT = 30;
-
+  
   const size_t HI_BYTES   = (PCM_BUFFER_BYTES * HI_PCT) / 100;
   const size_t LO_BYTES   = (PCM_BUFFER_BYTES * LO_PCT) / 100;
   const size_t PRIME_SLOTS = (NUM_BUFFERS * PRIME_PCT) / 100;
 
-  CodecKind active_codec = CODEC_UNKNOWN;
+  
   uint32_t  last_session = 0xFFFFFFFF;
   bool      priming      = true;
   bool      drained      = false;   // ✅ NEW: EOS guard
@@ -472,7 +515,6 @@ void AudioCore::decodeTask(void*) {
         priming        = true;
         AudioCore::decoder_auto_paused = false;
         vTaskDelay(pdMS_TO_TICKS(3));
-        continue;
       }
     }
 
@@ -481,7 +523,7 @@ void AudioCore::decodeTask(void*) {
     // --------------------------------------------------
     if (priming) {
       if (net_filled_slots() < (int)PRIME_SLOTS) {
-        vTaskDelay(3);
+        vTaskDelay(pdMS_TO_TICKS(3));
         continue;
       }
       priming = false;
@@ -501,7 +543,7 @@ void AudioCore::decodeTask(void*) {
       AudioCore::decoder_auto_paused = false;
 
     if (AudioCore::decoder_paused || AudioCore::decoder_auto_paused) {
-      vTaskDelay(3);
+      vTaskDelay(pdMS_TO_TICKS(3));
       continue;
     }
 
@@ -509,7 +551,7 @@ void AudioCore::decodeTask(void*) {
     // Wait for NET slot (unchanged)
     // --------------------------------------------------
     if (!HttpStreamEngine::netBufFilled[HttpStreamEngine::netRead]) {
-      vTaskDelay(1);
+      vTaskDelay(pdMS_TO_TICKS(1));
       continue;
     }
 
@@ -574,7 +616,7 @@ void AudioCore::decodeTask(void*) {
     HttpStreamEngine::netRead =
       (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
 
-    vTaskDelay(2);   // ✅ correct placement preserved
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 

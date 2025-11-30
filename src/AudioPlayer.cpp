@@ -65,6 +65,7 @@ void AudioPlayer_Play() {
     if (HttpStreamEngine::isAlive()) {
       // Soft resume
       AudioCore::decoder_paused = false;
+      AudioCore::set_a2dp_output(true);
       AudioCore::StartI2S();
       isPaused = false;
       return;
@@ -93,6 +94,7 @@ void AudioPlayer_Pause() {
     return;
 
   AudioCore::decoder_paused = true;
+  AudioCore::set_a2dp_output(false);
   AudioCore::StopI2S();
   isPaused = true;
 }
@@ -166,6 +168,10 @@ void AudioPlayer_Loop() {
 }
 
 int32_t pcm_data_callback(uint8_t* data, int32_t len) {
+
+  if (!AudioCore::is_a2dp_output_enabled())
+    return 0;
+
   return AudioCore::get_pcm_data_a2dp(data, len);
 }
 
@@ -183,6 +189,7 @@ void onA2DPAudioState(esp_a2d_audio_state_t state, void* user) {
 
   if (state == ESP_A2D_AUDIO_STATE_STARTED) {
     Serial.println("[APP] ✅ Sink is pulling audio");
+    AudioCore::set_a2dp_output(true);
     AudioCore::set_a2dp_audio_ready(true);
   } else {
     AudioCore::set_a2dp_audio_ready(false);

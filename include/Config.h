@@ -13,7 +13,7 @@ static const char* WIFI_PASS = "cdf45424e4";
 
 // ✅ NEW robust stall handling
 constexpr uint32_t STALL_RETRY_TIMEOUT_MS = 800;
-constexpr int      STALL_MAX_RETRIES      = 5;
+constexpr int      STALL_MAX_RETRIES      = 10;
 
 // ------------------------------
 // PCM buffering
@@ -22,9 +22,8 @@ constexpr int      STALL_MAX_RETRIES      = 5;
 #define PCM_BUFFER_BYTES   (1024 * PCM_BUFFER_SIZE_KB)
 #define A2DP_BUFFER_SIZE PCM_BUFFER_BYTES
 
-
 // ------------------------------
-// I2S pins
+// I2S pins & Config
 // ------------------------------ 
 #define I2S_BCK   14
 #define I2S_WS    12
@@ -36,7 +35,12 @@ constexpr int      STALL_MAX_RETRIES      = 5;
 // ------------------------------
 // Decode cadence
 // ------------------------------
-constexpr int BUDGET_FAST = 3;
-constexpr int BUDGET_NORM = 2;
-constexpr int BUDGET_SLOW = 1;
+constexpr int HI_PCT    = 90;
+constexpr int LO_PCT    = 40;
+constexpr int PRIME_PCT = 5;
 
+// xTask Priorities
+constexpr int DECODER_TASK_PRIORITY = 2;
+constexpr int HTTP_TASK_PRIORITY    = 1;
+constexpr int LVGL_TASK_PRIORITY    = 1;
+constexpr int I2S_TASK_PRIORITY     = 1;

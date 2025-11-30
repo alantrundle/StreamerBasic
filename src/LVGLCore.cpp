@@ -12,6 +12,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "WiFi.h"
+
+
+
 // -------------------------------------------------
 // LVGL display + buffers
 // -------------------------------------------------
@@ -51,7 +55,7 @@ void lvgl_init() {
   lv_display_set_flush_cb(lv_disp, my_flush);
 
   // ✅ Larger buffers = fewer flushes
-  const int lines = 120;  // tuned: reduces stripe effect heavily
+  const int lines = 80;  // tuned: reduces stripe effect heavily
   const size_t bytes =
     (size_t)TFT_HOR_RES * lines * sizeof(lv_color_t);
 
@@ -90,42 +94,45 @@ void lvgl_init() {
   xTaskCreatePinnedToCore(
     [](void*) {
 
-      TickType_t last = xTaskGetTickCount();
-      const TickType_t period = pdMS_TO_TICKS(20);  // 50Hz
-
       for (;;) {
 
+        ui_tick();
         lv_timer_handler();   // ✅ must run often
+
+        ID3v2Meta meta;
+        MP3StatusInfo info;
 
         // ---- UI updates ----
         ui_update_stats_bars(HttpStreamEngine::net_fill_percent(), AudioCore::pcm_buffer_percent());
+        ui_update_stats_outputs(AudioCore::is_i2s_output_enabled(), AudioCore::is_a2dp_output_enabled(), "none");
+        
 
-        ui_update_stats_outputs(AudioCore::is_i2s_output_enabled(), AudioCore::is_a2dp_audio_ready(), "none");
-
-        ID3v2Meta meta;
         if (HttpStreamEngine::getID3(meta)) {
-          ui_update_player_id3(
-            true,
-            meta.artist,
-            meta.title,
-            meta.album,
-            (int)meta.track
-          );
+          ui_update_player_id3(true, meta.artist, meta.title, meta.album, (int)meta.track);
         } else {
           ui_update_player_id3(false, "-", "-", "-", -1);
         }
 
-        ui_tick();
+        ui_update_stats_wifi(WiFi.status(), WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
 
-        vTaskDelayUntil(&last, period);
+         
+
+      if (AudioCore::getMP3Info(info)) {
+        ui_update_stats_decoder(info.codec, info.samplerate, info.channels, info.kbps);
+      } else {
+        ui_update_stats_decoder(0, 0, 0, 0);
+      }
+
+       vTaskDelay(pdMS_TO_TICKS(20));
+
       }
     },
     "LVGL",
     6144,
     nullptr,
-    1,               // ✅ KEEP LOW PRIORITY
+    LVGL_TASK_PRIORITY,               // ✅ KEEP LOW PRIORITY
     nullptr,
-    1
+    0
   );
 
   Serial.println("[LVGL] TFT setup done");

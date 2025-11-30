@@ -11,9 +11,11 @@ typedef struct _objects_t {
     lv_obj_t *start;
     lv_obj_t *stats;
     lv_obj_t *player;
+    lv_obj_t *bluetooth;
     lv_obj_t *obj0;
     lv_obj_t *stats_btn;
     lv_obj_t *start_btn;
+    lv_obj_t *start_btn_1;
     lv_obj_t *obj1;
     lv_obj_t *stats_lbl_pct_net;
     lv_obj_t *stats_lbl_pct_pcm;
@@ -40,6 +42,9 @@ typedef struct _objects_t {
     lv_obj_t *player_lbl_artist;
     lv_obj_t *player_lbl_album;
     lv_obj_t *player_lbl_tracknumber;
+    lv_obj_t *obj3;
+    lv_obj_t *bt_btn_start;
+    lv_obj_t *bt_btn_connect;
 } objects_t;
 
 extern objects_t objects;
@@ -48,6 +53,7 @@ enum ScreensEnum {
     SCREEN_ID_START = 1,
     SCREEN_ID_STATS = 2,
     SCREEN_ID_PLAYER = 3,
+    SCREEN_ID_BLUETOOTH = 4,
 };
 
 void create_screen_start();
@@ -58,6 +64,9 @@ void tick_screen_stats();
 
 void create_screen_player();
 void tick_screen_player();
+
+void create_screen_bluetooth();
+void tick_screen_bluetooth();
 
 void tick_screen_by_id(enum ScreensEnum screenId);
 void tick_screen(int screen_index);

@@ -100,7 +100,7 @@ void HttpStreamEngine::begin() {
       "HTTPFill",
       8192,
       nullptr,
-      1,
+      HTTP_TASK_PRIORITY,
       &httpTaskHandle,
       1);
 
@@ -313,6 +313,9 @@ void HttpStreamEngine::httpFillTask(void*) {
 
       // ---------- ID3 peel ----------
       if (!session_locked && !id3.header_found) {
+
+        id3v2_try_begin(cur, len, bytes_seen - len, MAX_CHUNK_SIZE, &id3c);
+
         size_t taken = id3v2_consume(cur, len, &id3c, &id3);
         cur += taken;
         len -= taken;

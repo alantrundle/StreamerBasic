@@ -11,6 +11,7 @@ enum CodecKind : uint8_t {
 };
 
 struct MP3StatusInfo {
+  char* codec;
   uint32_t samplerate;
   uint16_t kbps;
   uint8_t  channels;
@@ -30,6 +31,9 @@ public:
 
   static void StartI2S();
   static void StopI2S();
+
+  static bool getMP3Info(MP3StatusInfo& out);
+
 
   static bool decoder_paused;
 
@@ -53,9 +57,11 @@ public:
 
   // Output enable / readiness
   static void set_i2s_output(bool enabled);
+  static void set_a2dp_output(bool ready);
   static void set_a2dp_audio_ready(bool ready);
 
   static bool is_i2s_output_enabled();
+  static bool is_a2dp_output_enabled();
   static bool is_a2dp_audio_ready();
 
 

@@ -13,6 +13,8 @@ extern void action_goto_stats_view(lv_event_t * e);
 extern void action_player_previous(lv_event_t * e);
 extern void action_player_next(lv_event_t * e);
 extern void action_player_play_pause(lv_event_t * e);
+extern void action_goto_bluetooth_view(lv_event_t * e);
+extern void action_bluetooth_startscan(lv_event_t * e);
 
 
 #ifdef __cplusplus
