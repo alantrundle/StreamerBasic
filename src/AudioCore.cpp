@@ -488,8 +488,6 @@ void AudioCore::i2sPlaybackTask(void* /*param*/) {
 // ======================================================
 void AudioCore::decodeTask(void*) {
 
-
-
   const size_t HI_BYTES   = (PCM_BUFFER_BYTES * HI_PCT) / 100;
   const size_t LO_BYTES   = (PCM_BUFFER_BYTES * LO_PCT) / 100;
   const size_t PRIME_SLOTS = (NUM_BUFFERS * PRIME_PCT) / 100;
@@ -643,8 +641,7 @@ void AudioCore::decodeTask(void*) {
     // --------------------------------------------------
     HttpStreamEngine::netBufFilled[slot] = false;
     HttpStreamEngine::netSize[slot]      = 0;
-    HttpStreamEngine::netRead =
-      (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
+    HttpStreamEngine::netRead = (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
 
     vTaskDelay(5);
   }

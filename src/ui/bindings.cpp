@@ -185,84 +185,102 @@ void ui_update_player_id3(bool has_meta,
                           const char* artist,
                           const char* title,
                           const char* album,
-                          int track)
+                          int track,
+                          const uint16_t* pixels,
+                          uint16_t w,
+                          uint16_t h)
 {
     // Cache last values so we only update LVGL when they actually change
     static bool  last_have_meta = false;
     static char  last_artist[64] = "";
     static char  last_title[64]  = "";
     static char  last_album[64]  = "";
-    static int   last_track      = -1;
+    static int   last_track      = 0;
+
+    // Album art cache
+    static const uint16_t* last_pixels = nullptr;
+    static lv_image_dsc_t img_dsc;
 
     char buf[64];
 
-    // If no metadata: show placeholder (once)
+    /* ---------- NO METADATA ---------- */
     if (!has_meta) {
         if (last_have_meta) {
             last_have_meta = false;
 
-            if (objects.player_lbl_artist) lv_label_set_text(objects.player_lbl_artist, "—");
-            if (objects.player_lbl_title)  lv_label_set_text(objects.player_lbl_title,  "—");
-            if (objects.player_lbl_album)  lv_label_set_text(objects.player_lbl_album,  "—");
-            if (objects.player_lbl_tracknumber) lv_label_set_text(objects.player_lbl_tracknumber, "—");
+            if (objects.player_lbl_artist)
+                lv_label_set_text(objects.player_lbl_artist, "—");
+            if (objects.player_lbl_title)
+                lv_label_set_text(objects.player_lbl_title, "—");
+            if (objects.player_lbl_album)
+                lv_label_set_text(objects.player_lbl_album, "—");
+            if (objects.player_lbl_tracknumber)
+                lv_label_set_text(objects.player_lbl_tracknumber, "—");
         }
+
+        last_pixels = nullptr;
         return;
     }
 
     last_have_meta = true;
 
-    /* ---------------- ARTIST ---------------- */
+    /* ---------- ARTIST ---------- */
     const char* artist_safe = (artist && *artist) ? artist : "Unknown Artist";
     if (strcmp(artist_safe, last_artist) != 0) {
         strncpy(last_artist, artist_safe, sizeof(last_artist));
         last_artist[sizeof(last_artist) - 1] = '\0';
-
-        if (objects.player_lbl_artist) {
+        if (objects.player_lbl_artist)
             lv_label_set_text(objects.player_lbl_artist, last_artist);
-        }
     }
 
-    /* ---------------- TITLE ---------------- */
+    /* ---------- TITLE ---------- */
     const char* title_safe = (title && *title) ? title : "Unknown Title";
     if (strcmp(title_safe, last_title) != 0) {
         strncpy(last_title, title_safe, sizeof(last_title));
         last_title[sizeof(last_title) - 1] = '\0';
-
-        if (objects.player_lbl_title) {
+        if (objects.player_lbl_title)
             lv_label_set_text(objects.player_lbl_title, last_title);
-        }
     }
 
-    /* ---------------- ALBUM ---------------- */
+    /* ---------- ALBUM ---------- */
     const char* album_safe = (album && *album) ? album : "Unknown Album";
     if (strcmp(album_safe, last_album) != 0) {
         strncpy(last_album, album_safe, sizeof(last_album));
         last_album[sizeof(last_album) - 1] = '\0';
-
-        if (objects.player_lbl_album) {
+        if (objects.player_lbl_album)
             lv_label_set_text(objects.player_lbl_album, last_album);
-        }
     }
 
-    /* ---------------- TRACK NUMBER ---------------- */
+    /* ---------- TRACK NUMBER ---------- */
     if (track != last_track) {
         last_track = track;
-
         if (objects.player_lbl_tracknumber) {
-            if (track > 0) {
-                snprintf(buf, sizeof(buf), "%d", track);
-            } else {
-                snprintf(buf, sizeof(buf), "—");
-            }
+            if (track > 0) snprintf(buf, sizeof(buf), "%d", track);
+            else strcpy(buf, "—");
             lv_label_set_text(objects.player_lbl_tracknumber, buf);
         }
     }
+
+    /* ---------- ALBUM ART (RAW RGB565) ---------- */
+    if (!objects.player_img_albumart)
+        return;
+
+    if (!pixels || w == 0 || h == 0) {
+        last_pixels = nullptr;
+        return;
+    }
+
+    if (pixels == last_pixels)
+        return;
+
+    last_pixels = pixels;
+
+    img_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
+    img_dsc.header.w  = w;
+    img_dsc.header.h  = h;
+    img_dsc.data      = (const uint8_t*)pixels;
+    img_dsc.data_size = w * h * 2;
+
+    lv_image_set_src(objects.player_img_albumart, &img_dsc);
 }
-
-
-
-
-
-
-
 

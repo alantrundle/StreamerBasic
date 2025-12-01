@@ -43,17 +43,35 @@ static void connectWiFi() {
                 WiFi.localIP().toString().c_str());
 }
 
-void btScanCallback(int count, const char* const* names, const char* const* macs, const int8_t* rssis) {
+#include <string.h>
 
-  static bool connect = false;
+void btScanCallback(int count,
+                    const char* const* names,
+                    const char* const* macs,
+                    const int8_t* rssis)
+{
+    static bool connect = false;
 
-  if (count > 0 && !connect) {
-    Serial.printf("Connecting to %s\r\n", names[0]);
-    a2dp.connect_by_index(0);
-    connect = true;
-  }
+    if (connect) return;
 
+    for (int i = 0; i < count; i++) {
+
+        if (!names[i]) continue;
+
+        if (strcmp(names[i], "WH-CH520") == 0) {
+
+            Serial.printf("Connecting to %s (%s, RSSI %d)\r\n",
+                          names[i],
+                          macs ? macs[i] : "??",
+                          rssis ? rssis[i] : 0);
+
+            a2dp.connect_by_index(i);
+            connect = true;
+            return;
+        }
+    }
 }
+
 
 void memUsage() {
 

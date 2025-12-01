@@ -3034,8 +3034,8 @@
               "type": "LVGLImageWidget",
               "left": 21,
               "top": 48,
-              "width": 100,
-              "height": 100,
+              "width": 120,
+              "height": 120,
               "customInputs": [],
               "customOutputs": [],
               "style": {

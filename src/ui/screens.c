@@ -550,7 +550,7 @@ void create_screen_player() {
             lv_obj_t *obj = lv_image_create(parent_obj);
             objects.player_img_albumart = obj;
             lv_obj_set_pos(obj, 21, 48);
-            lv_obj_set_size(obj, 100, 100);
+            lv_obj_set_size(obj, 120, 120);
             lv_obj_set_style_border_color(obj, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);

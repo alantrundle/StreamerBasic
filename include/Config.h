@@ -37,10 +37,10 @@ constexpr int      STALL_MAX_RETRIES      = 10;
 // ------------------------------
 constexpr int HI_PCT    = 90;
 constexpr int LO_PCT    = 70;
-constexpr int PRIME_PCT = 5;
+constexpr int PRIME_PCT = 30;
 constexpr int MIN_A2DP_PCT = 10;   // wait until PCN > 10%
 
- constexpr uint32_t PCM_STALL_TIMEOUT_MS = 2000; // detect end of track
+ constexpr uint32_t PCM_STALL_TIMEOUT_MS = 4000; // detect end of track
 
 // xTask Priorities
 constexpr int DECODER_TASK_PRIORITY = 4;

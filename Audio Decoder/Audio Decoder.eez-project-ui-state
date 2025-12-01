@@ -1,6 +1,6 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/1",
+    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/2",
     "selectedActionObject": "[Audio Decoder.eez-project]:/actions/7",
     "selectedGlobalVariableObject": "[Audio Decoder.eez-project]:/variables/globalVariables/0",
     "subnavigationSelectedItems": {
@@ -82,7 +82,7 @@
           },
           {
             "type": "border",
-            "selected": 0,
+            "selected": 1,
             "location": "bottom",
             "children": [
               {
@@ -193,17 +193,16 @@
               "type": "tabset",
               "id": "EDITORS",
               "weight": 58.67256637168141,
-              "selected": 1,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
                 {
                   "type": "tab",
                   "id": "#4a40af38-0ee5-419c-ae2e-e14907759678",
-                  "name": "Bluetooth",
+                  "name": "Player",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[Audio Decoder.eez-project]:/userPages/3",
+                    "objectPath": "[Audio Decoder.eez-project]:/userPages/2",
                     "permanent": false
                   },
                   "icon": "svg:page"
@@ -1052,6 +1051,9 @@
           "0": {},
           "1": {
             "0": {}
+          },
+          "2": {
+            "$selected": true
           },
           "3": {},
           "5": {},

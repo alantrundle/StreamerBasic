@@ -102,6 +102,7 @@ void action_bluetooth_startscan(lv_event_t * e) {
         a2dp.stop_scan();
     } else if (!a2dp.scan_blocked() && !a2dp.isScanning() && !a2dp.isConnected()) {
         lv_label_set_text(objects.bt_btn_start, "Start Scan");
+        a2dp.erase_autoreconnect_table();
         a2dp.start_scan(10);
     }
 

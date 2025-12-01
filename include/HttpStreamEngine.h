@@ -26,6 +26,9 @@ public:
   static void close();
   static void stop();
 
+  static void wifi_quick_reconnect();
+  static bool wifi_check_and_recover();
+
   static void net_ring_clear();
 
   static bool isPlaying();
