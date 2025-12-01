@@ -308,19 +308,25 @@ void HttpStreamEngine::httpFillTask(void*) {
       size_t   len = readn;
 
       // ---------- ID3 peel ----------
-      if (!session_locked && !id3.header_found) {
+      if (!session_locked && len > 0) {
 
         id3v2_try_begin(cur, len, bytes_seen - len, MAX_CHUNK_SIZE, &id3c);
 
         size_t taken = id3v2_consume(cur, len, &id3c, &id3);
         cur += taken;
         len -= taken;
+
+        // ✅ ADD THIS
+        if (!id3c.collecting) {
+          tail_valid = false; 
+        }
+
       }
 
       SlotCodec tag = session_tag;
       uint16_t  offset = 0;
 
-      if (!session_locked && len > 0) {
+      if (!session_locked && !id3c.collecting && len > 0) {
 
         audetect::DetectResult dr{};
         uint8_t view[MAX_CHUNK_SIZE + 6];

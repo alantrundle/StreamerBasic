@@ -135,53 +135,70 @@ static void id3_parse_frames(const uint8_t* tag, size_t len, ID3v2Meta* m) {
 void id3v2_try_begin(const uint8_t* buf, size_t len,
                      uint64_t absolute_stream_pos,
                      size_t max_packet_bytes,
-                     ID3v2Collector* c) {
+                     ID3v2Collector* c)
+{
   if (!c || c->collecting || c->checked_head) return;
-  c->checked_head = true; // only once at head of stream
+  c->checked_head = true;
+
   if (absolute_stream_pos != 0) return;
   if (!buf || len < 10) return;
   if (memcmp(buf, "ID3", 3) != 0) return;
 
-  uint8_t ver_major = buf[3];
-  uint8_t flags     = buf[5];
-  uint32_t body     = synchsafe_to_u32(&buf[6]);
-  uint32_t total    = 10 + body + ((ver_major >= 4 && (flags & 0x10)) ? 10 : 0);
+  uint8_t  ver_major = buf[3];
+  uint8_t  flags     = buf[5];
+  uint32_t body      = synchsafe_to_u32(&buf[6]);
 
-  // Clamp: at most 3 packets
-  size_t max_total = 3 * max_packet_bytes;
-  if (total > max_total) total = (uint32_t)max_total;
+  uint32_t footer = (ver_major >= 4 && (flags & 0x10)) ? 10 : 0;
+  uint32_t total  = 10 + body + footer;
 
   c->need = total;
   c->have = 0;
   c->pkts = 0;
   c->collecting = true;
 
+  // ✅ PSRAM always
+  c->buf_psram = (uint8_t*)heap_caps_malloc(
+                   total,
+                   MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
   if (!c->buf_psram) {
-    c->buf_psram = (uint8_t*)heap_caps_malloc(c->need, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!c->buf_psram) {
-      // fail closed
-      c->collecting = false;
-    }
+    Serial.printf("[ID3] ⚠ PSRAM alloc failed (%u bytes), skip only\n", total);
+    // IMPORTANT: still collect/skip bytes, but don't parse
+    c->need = total;
   }
+
+  Serial.printf("[ID3] Detected v2.%d tag, size=%u bytes\n",
+                ver_major, total);
 }
 
-size_t id3v2_consume(const uint8_t* buf, size_t len, ID3v2Collector* c, ID3v2Meta* m) {
-  if (!c || !c->collecting || !c->buf_psram || len == 0) return 0;
-  size_t take = len;
-  if (take > (c->need - c->have)) take = (c->need - c->have);
-  memcpy(c->buf_psram + c->have, buf, take);
+
+size_t id3v2_consume(const uint8_t* buf, size_t len,
+                     ID3v2Collector* c, ID3v2Meta* m)
+{
+  if (!c || !c->collecting || len == 0) return 0;
+
+  size_t take = min(len, c->need - c->have);
+
+  if (c->buf_psram) {
+    memcpy(c->buf_psram + c->have, buf, take);
+  }
+
   c->have += take;
   c->pkts++;
 
-  bool done = (c->have >= c->need) || (c->pkts >= 3);
-  if (done) {
-    if (m) {
-      m->tag_bytes = (uint32_t)c->have;
-      id3v2_reset_meta(m); // ensure clean slate before parse
+  if (c->have >= c->need) {
+
+    if (c->buf_psram && m) {
+      m->tag_bytes = c->have;
+      id3v2_reset_meta(m);
       id3_parse_frames(c->buf_psram, c->have, m);
     }
+
     id3v2_free_collector(c);
     c->collecting = false;
+
+    Serial.printf("[ID3] Tag consumed (%u bytes)\n", c->have);
   }
+
   return take;
 }

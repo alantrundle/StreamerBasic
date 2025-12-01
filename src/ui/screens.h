@@ -12,6 +12,7 @@ typedef struct _objects_t {
     lv_obj_t *stats;
     lv_obj_t *player;
     lv_obj_t *bluetooth;
+    lv_obj_t *buffers;
     lv_obj_t *obj0;
     lv_obj_t *stats_btn;
     lv_obj_t *start_btn;
@@ -54,6 +55,7 @@ enum ScreensEnum {
     SCREEN_ID_STATS = 2,
     SCREEN_ID_PLAYER = 3,
     SCREEN_ID_BLUETOOTH = 4,
+    SCREEN_ID_BUFFERS = 5,
 };
 
 void create_screen_start();
@@ -67,6 +69,9 @@ void tick_screen_player();
 
 void create_screen_bluetooth();
 void tick_screen_bluetooth();
+
+void create_screen_buffers();
+void tick_screen_buffers();
 
 void tick_screen_by_id(enum ScreensEnum screenId);
 void tick_screen(int screen_index);

@@ -1,6 +1,6 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/4",
+    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/1",
     "selectedActionObject": "[Audio Decoder.eez-project]:/actions/7",
     "selectedGlobalVariableObject": "[Audio Decoder.eez-project]:/variables/globalVariables/0",
     "subnavigationSelectedItems": {
@@ -192,18 +192,18 @@
             {
               "type": "tabset",
               "id": "EDITORS",
-              "weight": 29.641025641025642,
-              "selected": 2,
+              "weight": 58.67256637168141,
+              "selected": 1,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
                 {
                   "type": "tab",
                   "id": "#4a40af38-0ee5-419c-ae2e-e14907759678",
-                  "name": "Buffers",
+                  "name": "Bluetooth",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[Audio Decoder.eez-project]:/userPages/4",
+                    "objectPath": "[Audio Decoder.eez-project]:/userPages/3",
                     "permanent": false
                   },
                   "icon": "svg:page"
@@ -237,7 +237,7 @@
             {
               "type": "row",
               "id": "#ee490f69-1e5b-4775-84bf-cd7d11f35d3d",
-              "weight": 55.35897435897436,
+              "weight": 26.327433628318584,
               "children": [
                 {
                   "type": "tabset",
@@ -1024,17 +1024,18 @@
         "0": {
           "0": {},
           "1": {
-            "0": {},
+            "0": {}
+          },
+          "3": {
             "$selected": true
           },
-          "3": {},
           "5": {}
         }
       },
       "transform": {
         "translate": {
-          "x": -240,
-          "y": -60
+          "x": -200.46020991019563,
+          "y": -218.71130334280426
         },
         "scale": 1
       },
@@ -1054,9 +1055,8 @@
           },
           "3": {},
           "5": {},
-          "7": {
-            "$selected": true
-          }
+          "7": {},
+          "9": {}
         }
       },
       "transform": {

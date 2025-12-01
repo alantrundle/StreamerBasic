@@ -124,11 +124,13 @@ void lvgl_init() {
                 "none"
             );
 
-            if (HttpStreamEngine::getID3(meta)) {
+            if (HttpStreamEngine::getID3(meta) && meta.header_found) {
                 ui_update_player_id3(
                     true, meta.artist, meta.title,
                     meta.album, (int)meta.track
                 );
+            } else {
+              ui_update_player_id3(true, "-", "-", "-", atoi("0"));
             }
 
             ui_update_stats_wifi(

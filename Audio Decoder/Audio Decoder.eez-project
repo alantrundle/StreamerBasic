@@ -1120,7 +1120,7 @@
                   "objID": "e07d52c6-6d73-4235-eacc-988ad2bf8111",
                   "type": "LVGLLabelWidget",
                   "left": 58,
-                  "top": 52,
+                  "top": 50,
                   "width": 8,
                   "height": 15,
                   "customInputs": [],
@@ -1171,7 +1171,7 @@
                   "objID": "0e2a83e4-1648-44bd-fb04-1b82e201eb18",
                   "type": "LVGLLabelWidget",
                   "left": 58,
-                  "top": 33,
+                  "top": 31,
                   "width": 8,
                   "height": 15,
                   "customInputs": [],
@@ -1273,7 +1273,7 @@
                   "objID": "e63c005e-17a2-4572-fcfb-e0d34eabffb2",
                   "type": "LVGLLabelWidget",
                   "left": 58,
-                  "top": -5,
+                  "top": -7,
                   "width": 38,
                   "height": 15,
                   "customInputs": [],
@@ -3104,7 +3104,7 @@
               "eventHandlers": [
                 {
                   "objID": "6e12f64a-30fc-4880-d6e3-f25905e95255",
-                  "eventName": "PRESSED",
+                  "eventName": "RELEASED",
                   "handlerType": "action",
                   "action": "playerPlayPause",
                   "userData": 0
@@ -3202,7 +3202,7 @@
               "eventHandlers": [
                 {
                   "objID": "9ab85708-9ba8-4159-c5cb-53b816c7477b",
-                  "eventName": "PRESSED",
+                  "eventName": "RELEASED",
                   "handlerType": "action",
                   "action": "player_previous",
                   "userData": 0
@@ -3299,7 +3299,7 @@
               "eventHandlers": [
                 {
                   "objID": "648c605b-727f-4dbe-ebdd-8b77b8869d30",
-                  "eventName": "PRESSED",
+                  "eventName": "RELEASED",
                   "handlerType": "action",
                   "action": "player_next",
                   "userData": 0
@@ -3415,7 +3415,7 @@
               },
               "group": "",
               "groupIndex": 0,
-              "text": "Now playing...",
+              "text": "-",
               "textType": "literal",
               "longMode": "WRAP",
               "recolor": false
