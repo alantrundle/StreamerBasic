@@ -4,14 +4,11 @@
 
 #include "esp_bt.h"
 #include "esp_bt_main.h"
-#include "esp_gap_bt_api.h"   
+#include "esp_gap_bt_api.h"
 #include "esp_a2dp_api.h"
 #include "esp_avrc_api.h"
 #include "esp_bt_device.h"
 #include "esp_coexist.h"
-
-#include "esp_wifi.h"
-
 
 class A2DPCore {
 public:
@@ -23,11 +20,11 @@ public:
   using A2DPAudioStateCallback =
     void (*)(esp_a2d_audio_state_t, void*);
 
-    using A2DPScanCallback =
-  void (*)(int count,
-           const char* const* names,
-           const char* const* macs,
-           const int8_t* rssi);
+  using A2DPScanCallback =
+    void (*)(int count,
+             const char* const* names,
+             const char* const* macs,
+             const int8_t* rssi);
 
   A2DPCore();
 
@@ -44,11 +41,14 @@ public:
   void stop_scan();
   void connect_by_index(int index);
 
+  // ✅ Auto-reconnect table management
+  void autoreconnect_delete(int index);
+
   bool scan_blocked() const { return block_manual_scan_; }
   bool isConnected() const { return connected_; }
   bool isScanning() const { return scanning_; }
 
-
+  static void erase_autoreconnect_table();
 
   /* ✅ REQUIRED: call this from your main loop */
   void loop();
@@ -77,12 +77,11 @@ private:
 
   bool auto_reconnect_ = true;
   bool scanning_ = false;
-
-
   bool connected_ = false;
-
 
   // ✅ NEW (minimal)
   bool     block_manual_scan_ = false;
   uint32_t autoreconnect_start_ms_ = 0;
+
+
 };

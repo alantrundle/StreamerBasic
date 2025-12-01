@@ -169,22 +169,34 @@ void AudioPlayer_Loop() {
   wasPlaying = playing;
 }
 
-int32_t pcm_data_callback(uint8_t* data, int32_t len) {
+int32_t pcm_data_callback(uint8_t* data, int32_t len)
+{
+  // --------------------------------------------------
+  // HARD SAFETY GUARDS (REQUIRED)
+  // --------------------------------------------------
+  if (!data || len <= 0) {
+    return 0;
+  }
+
+  if (!AudioCore::is_a2dp_audio_ready()) {
+    memset(data, 0, len);
+    return len;
+  }
 
   static int warmup_frames = 0;
-  constexpr int WARMUP_FRAMES = 3;   // 2–4 is enough
+  constexpr int WARMUP_FRAMES = 3;
 
   // --------------------------------------------------
-  // Output disabled → send silence (never block)
+  // Output disabled → silence
   // --------------------------------------------------
   if (!AudioCore::is_a2dp_output_enabled()) {
     memset(data, 0, len);
-    warmup_frames = 0;   // re-prime when output re-enables
+    warmup_frames = 0;
     return len;
   }
 
   // --------------------------------------------------
-  // A2DP encoder warm-up (silence priming)
+  // Encoder warm-up frames
   // --------------------------------------------------
   if (warmup_frames < WARMUP_FRAMES) {
     memset(data, 0, len);

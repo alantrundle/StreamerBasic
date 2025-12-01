@@ -174,8 +174,6 @@ void HttpStreamEngine::stop() {
   Serial.println("[HTTP] ⏹ Stop (hard)");
 }
 
-
-
 // =======================================================
 // HTTP Producer Task (PATCHED TO MATCH ORIGINAL MAIN.CPP)
 // =======================================================
@@ -196,7 +194,6 @@ void HttpStreamEngine::httpFillTask(void*) {
   int64_t  bytes_committed = 0;
 
 
-
   uint32_t stall_deadline = 0;
   int      stall_retries  = 0;
 
@@ -204,7 +201,7 @@ void HttpStreamEngine::httpFillTask(void*) {
 
     // ---------------- IDLE ----------------
     if (!stream_running || !g_url_open) {
-      vTaskDelay(30);
+      vTaskDelay(30); // idle or not streaming
       continue;
     }
 
@@ -214,7 +211,7 @@ void HttpStreamEngine::httpFillTask(void*) {
     sock.stop();
 
     if (!http.begin(sock, g_open_url)) {
-      vTaskDelay(200);
+      vTaskDelay(200); // HTTP begin failure
       continue;
     }
 
@@ -227,7 +224,7 @@ void HttpStreamEngine::httpFillTask(void*) {
       Serial.printf("[HTTP] ❌ GET failed: %d\n", code);
       http.end();
       sock.stop();
-      vTaskDelay(500);
+      vTaskDelay(500); // HTTP GET failure
       continue;
     }
 
@@ -254,7 +251,8 @@ void HttpStreamEngine::httpFillTask(void*) {
     while (stream_running && g_play_session == my_session) {
 
       if (netBufFilled[netWrite]) {
-        vTaskDelay(20);
+        //vTaskDelay(20); // buffer full (back pressure)
+        vTaskDelay(net_fill_percent() > 70 ? 20 : 5);
         continue;
       }
 
@@ -283,7 +281,7 @@ void HttpStreamEngine::httpFillTask(void*) {
           stall_deadline = millis() + STALL_RETRY_TIMEOUT_MS;
         }
 
-        vTaskDelay(100);
+        vTaskDelay(100); // socket has no data (normal TCP wait)
         continue;
       }
 
@@ -398,27 +396,47 @@ void HttpStreamEngine::httpFillTask(void*) {
       Serial.println("[HTTP] ⏹ HTTP EOF — draining decoder");
     }
 
-    // ========= WAIT FOR DECODER DRAIN =========
+    uint32_t last_change_ms = millis();
+    int      last_pcm_pct   = AudioCore::pcm_buffer_percent();
+
     while (AudioCore::pcm_buffer_percent() > 0) {
+
+    // ✅ Do NOT interfere with pause
+    if (AudioCore::decoder_paused) {
       vTaskDelay(10);
+      continue;
     }
 
-    if (stream_eof && g_play_session == my_session) {
+    int cur_pct = AudioCore::pcm_buffer_percent();
 
-      g_isPlaying = false;
-      g_url_open  = false;
-      stream_eof  = false;
-
-      Serial.println("[HTTP] ✅ Decoder drained — playback finished");
+    // ✅ Detect forward progress
+    if (cur_pct != last_pcm_pct) {
+      last_pcm_pct   = cur_pct;
+      last_change_ms = millis();
     }
 
-    vTaskDelay(20);
+    // ❌ PCM stuck → exit drain safely
+    if (millis() - last_change_ms > PCM_STALL_TIMEOUT_MS) {
+      Serial.printf("[HTTP] ⚠ PCM drain stalled at %d%% — forcing end\n", cur_pct);
+      break;
+    }
+
+    vTaskDelay(5);
+  }
+
+  if (stream_eof && g_play_session == my_session) {
+
+    g_isPlaying = false;
+    g_url_open  = false;
+    stream_eof  = false;
+
+    Serial.println("[HTTP] ✅ Decoder drained — playback finished");
+  }
+
+  vTaskDelay(20);
+
   }
 }
-
-
-
-
 
 int HttpStreamEngine::net_fill_percent() {
 

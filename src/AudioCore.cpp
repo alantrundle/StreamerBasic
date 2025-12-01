@@ -241,8 +241,9 @@ void AudioCore::clearPCM() {
     return;
   }
 
-  // 3️⃣ Clear buffer OUTSIDE critical section
-  memset(a2dp_buffer, 0, PCM_BUFFER_BYTES);
+  if (a2dp_buffer) {
+    memset(a2dp_buffer, 0, PCM_BUFFER_BYTES);
+  }
 
   Serial.println("[Audio] 🧹 PCM buffer cleared");
 }
