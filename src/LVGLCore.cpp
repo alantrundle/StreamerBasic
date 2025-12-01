@@ -59,8 +59,8 @@ void lvgl_init() {
   const size_t bytes = (size_t)TFT_HOR_RES * lines * sizeof(lv_color_t);
 
   lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  lvbuf2 = nullptr;
-  //lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  //lvbuf2 = nullptr;
 
   //lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   //lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
@@ -93,11 +93,10 @@ void lvgl_init() {
   // --- UI ---
   ui_init();
 
-  constexpr uint32_t UI_UPDATE_PERIOD_MS = 50;
+  constexpr uint32_t UI_UPDATE_PERIOD_MS = 25;
   constexpr uint32_t LVGL_PERIOD_MS      = 10;
 
-  xTaskCreatePinnedToCore(
-    [](void*) {
+  xTaskCreatePinnedToCore([](void*) {
 
     uint32_t last_ui_update = 0;
 
@@ -149,14 +148,7 @@ void lvgl_init() {
         // 3️⃣ Delay sets LVGL cadence
         vTaskDelay(pdMS_TO_TICKS(LVGL_PERIOD_MS));
     }
-  },
-  "LVGL",
-  8192,                    // ✅ safe stack
-  nullptr,
-  LVGL_TASK_PRIORITY,
-  nullptr,  
-  1
-  );
+  }, "LVGL", 8192, nullptr, LVGL_TASK_PRIORITY, nullptr, 1);
 
   Serial.println("[LVGL] TFT setup done");
 }

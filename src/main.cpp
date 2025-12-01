@@ -45,8 +45,12 @@ static void connectWiFi() {
 
 void btScanCallback(int count, const char* const* names, const char* const* macs, const int8_t* rssis) {
 
-  if (count > 0) {
+  static bool connect = false;
+
+  if (count > 0 && !connect) {
+    Serial.printf("Connecting to %s\r\n", names);
     a2dp.connect_by_index(0);
+    connect = true;
   }
 
 }

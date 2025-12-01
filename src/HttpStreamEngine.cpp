@@ -139,7 +139,6 @@ void HttpStreamEngine::play() {
   Serial.println("[HTTP] ▶ Play");
 }
 
-
 void HttpStreamEngine::close() {
 
   // Graceful stop request
@@ -251,8 +250,7 @@ void HttpStreamEngine::httpFillTask(void*) {
     while (stream_running && g_play_session == my_session) {
 
       if (netBufFilled[netWrite]) {
-        //vTaskDelay(20); // buffer full (back pressure)
-        vTaskDelay(net_fill_percent() > 70 ? 20 : 5);
+        vTaskDelay(net_fill_percent() > 70 ? 20 : 5); // net fill. 20 if over 70%, and 1 when under (throttle)
         continue;
       }
 
@@ -421,7 +419,6 @@ void HttpStreamEngine::httpFillTask(void*) {
       break;
     }
 
-    vTaskDelay(5);
   }
 
   if (stream_eof && g_play_session == my_session) {
@@ -433,7 +430,8 @@ void HttpStreamEngine::httpFillTask(void*) {
     Serial.println("[HTTP] ✅ Decoder drained — playback finished");
   }
 
-  vTaskDelay(20);
+  // prevents CPU starvation, but throttle if necesarry
+  vTaskDelay(net_fill_percent() > 70 ? 20 : 5); // net fill. 20 if over 70%, and 1 when under (throttle)
 
   }
 }
@@ -450,4 +448,3 @@ int HttpStreamEngine::net_fill_percent() {
 
   return (filled * 100) / NUM_BUFFERS;
 }
-
