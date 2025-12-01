@@ -10,6 +10,8 @@
 #include "esp_bt_device.h"
 #include "esp_coexist.h"
 
+#include "esp_wifi.h"
+
 
 class A2DPCore {
 public:
@@ -35,6 +37,7 @@ public:
   void set_scan_callback(A2DPScanCallback cb);
   void set_pcm_callback(esp_a2d_source_data_cb_t cb);
   void set_autoreconnection(bool enable);
+  void set_sleepmode(bool enable);
 
   void start();
   void start_scan(uint32_t duration_seconds);

@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
+
 #include "Config.h"
 #include "AudioCore.h"
 #include "HttpStreamEngine.h"
@@ -25,6 +26,7 @@ static void connectWiFi() {
   Serial.printf("[WIFI] Connecting to %s\n", WIFI_SSID);
 
   WiFi.mode(WIFI_STA);
+ 
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
   uint32_t start = millis();
@@ -36,6 +38,7 @@ static void connectWiFi() {
       return;
     }
   }
+
 
   // enable Player controls button
   lv_obj_clear_state(objects.start_btn, LV_STATE_DISABLED);
@@ -62,19 +65,15 @@ void setup() {
 
   Serial.println("\n=== StreamerBasic ===");
 
-  lvgl_init();
 
-  // 1. Wi-Fi
-  connectWiFi();
+
+  lvgl_init();
 
   // 2. Audio core (PCM, EQ, I2S, decoder tasks)
   if (!AudioCore::init()) {
     Serial.println("[MAIN] ❌ AudioCore init failed");
     while (true) delay(1000);
   }
-
-  // 3. HTTP streamer (NET buffers + task)
-  HttpStreamEngine::begin();
 
   a2dp.set_device_name("AT1053-Source");
   a2dp.set_autoreconnection(true);
@@ -84,9 +83,11 @@ void setup() {
   a2dp.set_scan_callback(btScanCallback);
   a2dp.start();
 
-  
-  //HttpStreamEngine::open(urls[0]);
-  //HttpStreamEngine::play();
+  // 1. Wi-Fi
+  connectWiFi();
+
+  // 3. HTTP streamer (NET buffers + task)
+  HttpStreamEngine::begin();
 }
 
 // ------------------------------------------------------------

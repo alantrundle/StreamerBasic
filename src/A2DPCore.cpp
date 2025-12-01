@@ -54,6 +54,17 @@ void A2DPCore::set_autoreconnection(bool enable) {
                 enable ? "ENABLED" : "DISABLED");
 }
 
+void A2DPCore::set_sleepmode(bool enable) {
+
+  if(enable && connected_)
+    esp_bt_sleep_disable();
+  else 
+    esp_bt_sleep_enable();
+    
+    Serial.printf("[A2DP] 🔁 BT Sleep %s\n",
+                enable ? "ENABLED" : "DISABLED");
+}
+
 // ------------------------------------------------------------
 // Start Bluetooth stack (⚠️ DO NOT CHANGE ORDER ⚠️)
 // ------------------------------------------------------------
@@ -94,16 +105,22 @@ void A2DPCore::start() {
     Serial.println("[A2DP] PCM callback registered");
   }
 
-  //esp_avrc_tg_register_callback(avrc_tg_cb);
-  //esp_avrc_tg_init();
+  esp_avrc_tg_register_callback(avrc_tg_cb);
+  esp_avrc_tg_init();
 
   esp_a2d_source_init();
+
+  // prevent sleep
+  esp_wifi_set_ps(WIFI_PS_NONE);
+  esp_bt_sleep_disable();
 
   // ✅ NEW: block manual scans during auto-reconnect window ONLY
   if (auto_reconnect_) {
     block_manual_scan_ = true;
     autoreconnect_start_ms_ = millis();
   }
+
+
 
   Serial.println("[A2DP] ✅ Source ready");
 }
