@@ -79,6 +79,12 @@ void HttpStreamEngine::wifi_quick_reconnect()
 {
     Serial.println("[WIFI] Quick reconnect");
 
+    size_t dma_free = heap_caps_get_largest_free_block(MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    size_t int_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+
+  Serial.printf("[DEBUG] DMA largest free: %u bytes\n", dma_free);
+  Serial.printf("[DEBUG] Internal free:   %u bytes\n", int_free);
+
     WiFi.disconnect(false);   // do NOT erase config
     delay(50);
 
@@ -226,19 +232,22 @@ void HttpStreamEngine::httpFillTask(void*)
 
   for (;;) {
 
+    const uint32_t my_session = g_play_session;
+
     // ---------- idle ----------
     if (!stream_running || !g_url_open) {
       vTaskDelay(30);
       continue;
     }
 
-    const uint32_t my_session = g_play_session;
-
     http.end();
     sock.stop();
 
-    // short delay
-    delay(100);
+    while (sock.connected() || http.connected()) {
+      Serial.println("[HTTP] trying to close HTTP");
+      // short delay
+      delay(100);
+    }
 
     if (!http.begin(sock, g_open_url)) {
       vTaskDelay(200);
@@ -390,23 +399,59 @@ void HttpStreamEngine::httpFillTask(void*)
     }
 
     // -------- teardown --------
+    // -------- network EOF --------
     http.end();
     sock.stop();
 
     stream_running = false;
     stream_eof     = true;
 
-    if (g_play_session == my_session) {
-      g_isPlaying = false;
-      g_url_open  = false;
-      stream_eof  = false;
-      Serial.println("[HTTP] ✅ Playback finished");
-    }
+    Serial.println("[HTTP] ⏳ Network EOF, draining PCM...");
 
-    vTaskDelay(10);
-  }
+    // -------- PCM drain wait --------
+    uint32_t drain_start = millis();
+    int32_t last_change = drain_start;
+    int      last_pcm    = AudioCore::pcm_buffer_percent();
+
+    while (g_play_session == my_session) {
+
+      int pcm = AudioCore::pcm_buffer_percent();
+
+      // ✅ drained normally
+      if (pcm <= 0) {
+        Serial.println("[HTTP] ✅ PCM drained");
+        break;
+      }
+
+      // ✅ PCM moving → keep waiting
+      if (pcm != last_pcm) {
+        last_pcm = pcm;
+        last_change = millis();
+      }
+
+      // ❌ stuck → timeout fallback
+      if (millis() - last_change > PCM_STALL_TIMEOUT_MS) {
+        Serial.println("[HTTP] ⚠ PCM drain stalled, forcing end");
+        break;
+      }
+
+    vTaskDelay(20);
 }
 
+  // -------- final teardown --------
+  if (g_play_session == my_session) {
+
+    g_isPlaying = false;
+    g_url_open  = false;
+    stream_eof  = false;
+
+    Serial.println("[HTTP] ✅ Playback finished");
+  }
+
+
+  vTaskDelay(10);
+  }
+}
 
 int HttpStreamEngine::net_fill_percent() {
 

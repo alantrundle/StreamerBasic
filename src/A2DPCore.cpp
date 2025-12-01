@@ -258,6 +258,15 @@ void A2DPCore::autoreconnect_delete(int index) {
   Serial.printf("[A2DP] 🗑 Deleted NV[%d]\n", index);
 }
 
+bool A2DPCore::connected_details(A2DPConnectedDetails& out)
+{
+  if (!connected_details_.connected)
+    return false;
+
+  out = connected_details_;
+  return true;
+}
+
 // ------------------------------------------------------------
 // GAP callback (EIR name support)
 // ------------------------------------------------------------
@@ -418,10 +427,7 @@ static void a2dp_kick_cb(void* arg)
   }
 }
 
-
-void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
-                       esp_a2d_cb_param_t* param)
-{
+void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t* param) {
   if (!self_) return;
 
   switch (event) {
@@ -434,6 +440,7 @@ void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
       esp_a2d_connection_state_t s = param->conn_stat.state;
       Serial.printf("[A2DP] 🔗 Connection state = %d\n", s);
 
+      // ================= CONNECTED ====================
       if (s == ESP_A2D_CONNECTION_STATE_CONNECTED) {
 
         self_->connected_ = true;
@@ -441,6 +448,66 @@ void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
 
         // DO NOT enable audio here
         AudioCore::set_a2dp_audio_ready(false);
+
+        // -------- connected details --------
+        memset(&self_->connected_details_, 0,
+               sizeof(self_->connected_details_));
+
+        self_->connected_details_.connected = true;
+
+        // Was this auto-reconnect?
+        self_->connected_details_.auto_reconnect =
+            self_->auto_reconnect_ && self_->block_manual_scan_;
+
+        // Store MAC
+        memcpy(self_->connected_details_.mac,
+               param->conn_stat.remote_bda, 6);
+
+        // 1) Autoreconnect NV table
+        for (int i = 0; i < AR_MAX; i++) {
+          if (ar_table[i].mac[0] == 0x00) continue;
+          if (memcmp(ar_table[i].mac,
+                     param->conn_stat.remote_bda, 6) == 0) {
+
+            strncpy(self_->connected_details_.name,
+                    ar_table[i].name,
+                    sizeof(self_->connected_details_.name) - 1);
+            break;
+          }
+        }
+
+        // 2) Scan / EIR name
+        if (!self_->connected_details_.name[0]) {
+          for (int i = 0; i < scan_count_; i++) {
+            if (memcmp(scan_bda_[i],
+                       param->conn_stat.remote_bda, 6) == 0) {
+
+              strncpy(self_->connected_details_.name,
+                      scan_name_[i][0] ? scan_name_[i] : "Unknown",
+                      sizeof(self_->connected_details_.name) - 1);
+              break;
+            }
+          }
+        }
+
+        // 3) Fallback
+        if (!self_->connected_details_.name[0]) {
+          strncpy(self_->connected_details_.name,
+                  "Unknown",
+                  sizeof(self_->connected_details_.name) - 1);
+        }
+
+        Serial.printf(
+          "[A2DP] ✅ Connected device: %s (%02X:%02X:%02X:%02X:%02X:%02X)%s\n",
+          self_->connected_details_.name,
+          self_->connected_details_.mac[0],
+          self_->connected_details_.mac[1],
+          self_->connected_details_.mac[2],
+          self_->connected_details_.mac[3],
+          self_->connected_details_.mac[4],
+          self_->connected_details_.mac[5],
+          self_->connected_details_.auto_reconnect ? " [auto]" : ""
+        );
 
         // Defer CHECK_SRC_RDY (safe + required)
         if (!s_a2dp_kick_timer) {
@@ -452,10 +519,18 @@ void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
 
         esp_timer_start_once(s_a2dp_kick_timer, 100000); // 100 ms
       }
+
+      // ================= DISCONNECTED =================
       else if (s == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
 
         self_->connected_ = false;
         AudioCore::set_a2dp_audio_ready(false);
+
+        // Clear connected details
+        memset(&self_->connected_details_, 0,
+               sizeof(self_->connected_details_));
+
+        Serial.println("[A2DP] ❌ Device disconnected — details cleared");
       }
 
       if (self_->conn_cb_) {

@@ -169,45 +169,46 @@ void AudioPlayer_Loop() {
   wasPlaying = playing;
 }
 
+// A2DP output
 int32_t pcm_data_callback(uint8_t* data, int32_t len)
 {
-  // --------------------------------------------------
-  // HARD SAFETY GUARDS (REQUIRED)
-  // --------------------------------------------------
-  if (!data || len <= 0) {
-    return 0;
-  }
+    if (!data || len <= 0) {
+        return 0;   // only invalid case allowed
+    }
 
-  if (!AudioCore::is_a2dp_audio_ready()) {
-    memset(data, 0, len);
+    // --------------------------------------------------
+    // A2DP not ready → silence
+    // --------------------------------------------------
+    if (!AudioCore::is_a2dp_audio_ready() ||
+        !AudioCore::is_a2dp_output_enabled()) {
+        memset(data, 0, len);
+        return len;
+    }
+
+    // --------------------------------------------------
+    // Encoder warm-up (BT codec stability)
+    // --------------------------------------------------
+    static uint8_t warmup = 0;
+    constexpr uint8_t WARMUP_FRAMES = 3;
+
+    if (warmup < WARMUP_FRAMES) {
+        memset(data, 0, len);
+        warmup++;
+        return len;
+    }
+
+    // --------------------------------------------------
+    // PCM supply with SILENCE FALLBACK
+    // --------------------------------------------------
+    int32_t got = AudioCore::get_pcm_data_a2dp(data, len);
+
+    if (got < len) {
+        // PCM underrun → pad with zeros
+        memset(data + got, 0, len - got);
+        return len;
+    }
+
     return len;
-  }
-
-  static int warmup_frames = 0;
-  constexpr int WARMUP_FRAMES = 3;
-
-  // --------------------------------------------------
-  // Output disabled → silence
-  // --------------------------------------------------
-  if (!AudioCore::is_a2dp_output_enabled()) {
-    memset(data, 0, len);
-    warmup_frames = 0;
-    return len;
-  }
-
-  // --------------------------------------------------
-  // Encoder warm-up frames
-  // --------------------------------------------------
-  if (warmup_frames < WARMUP_FRAMES) {
-    memset(data, 0, len);
-    warmup_frames++;
-    return len;
-  }
-
-  // --------------------------------------------------
-  // Normal PCM supply
-  // --------------------------------------------------
-  return AudioCore::get_pcm_data_a2dp(data, len);
 }
 
 void onA2DPConnectionState(esp_a2d_connection_state_t state, void* user) {

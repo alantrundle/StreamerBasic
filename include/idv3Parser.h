@@ -17,6 +17,8 @@ struct ID3v2Meta {
   char     genre[32];
 };
 
+
+
 // Collector (per-session)
 struct ID3v2Collector {
   uint8_t* buf_psram;        // PSRAM buffer holding the tag
@@ -45,6 +47,12 @@ void id3v2_try_begin(const uint8_t* buf, size_t len,
 // Consume up to `len` bytes from `buf` into the collector. Returns bytes consumed.
 // If the tag finishes (or 3 packets reached), parses meta and stops collecting.
 size_t id3v2_consume(const uint8_t* buf, size_t len, ID3v2Collector* c, ID3v2Meta* m);
+
+bool id3_fetch_album_art_jpeg(
+    const char* artist,
+    const char* album,
+    uint8_t**   out_jpeg,
+    size_t*    out_len);
 
 #ifdef __cplusplus
 }

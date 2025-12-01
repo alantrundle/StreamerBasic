@@ -10,6 +10,13 @@
 #include "esp_bt_device.h"
 #include "esp_coexist.h"
 
+typedef struct {
+    bool     connected;
+    bool     auto_reconnect;
+    uint8_t  mac[6];
+    char     name[32];     // resolved / EIR
+  } A2DPConnectedDetails;
+
 class A2DPCore {
 public:
   static constexpr int MAX_SCAN = 10;
@@ -25,6 +32,8 @@ public:
              const char* const* names,
              const char* const* macs,
              const int8_t* rssi);
+
+  
 
   A2DPCore();
 
@@ -49,6 +58,8 @@ public:
   bool isScanning() const { return scanning_; }
 
   static void erase_autoreconnect_table();
+
+  bool connected_details(A2DPConnectedDetails& out);
 
   /* ✅ REQUIRED: call this from your main loop */
   void loop();
@@ -83,5 +94,5 @@ private:
   bool     block_manual_scan_ = false;
   uint32_t autoreconnect_start_ms_ = 0;
 
-
+  A2DPConnectedDetails connected_details_ {};
 };

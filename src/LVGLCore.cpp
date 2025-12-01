@@ -1,5 +1,6 @@
 // TFT includes
 #include "LVGLCore.h"
+#include "WiFi.h"
 #include "gfxDriver.h"
 
 #include <lvgl.h>
@@ -12,9 +13,27 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "WiFi.h"
+#include "A2DPCore.h"
+
+extern A2DPCore a2dp;
+
+char* a2dpName;
 
 
+
+// Helpers
+void macToStr(const uint8_t mac[6], char* out, size_t out_len) {
+  if (!out || out_len < 18) {   // "AA:BB:CC:DD:EE:FF" + '\0'
+    if (out && out_len > 0)
+      out[0] = '\0';
+    return;
+  }
+
+  snprintf(out, out_len,
+           "%02X:%02X:%02X:%02X:%02X:%02X",
+           mac[0], mac[1], mac[2],
+           mac[3], mac[4], mac[5]);
+}
 
 // -------------------------------------------------
 // LVGL display + buffers
@@ -99,6 +118,7 @@ void lvgl_init() {
   xTaskCreatePinnedToCore([](void*) {
 
     uint32_t last_ui_update = 0;
+    a2dpName = (char*)heap_caps_malloc(60, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
     for (;;) {
 
@@ -113,17 +133,27 @@ void lvgl_init() {
             ID3v2Meta meta;
             MP3StatusInfo info;
 
+            A2DPConnectedDetails btinfo;
+
+            // Update Buffer section
             ui_update_stats_bars(
                 HttpStreamEngine::net_fill_percent(),
                 AudioCore::pcm_buffer_percent()
             );
 
-            ui_update_stats_outputs(
-                AudioCore::is_i2s_output_enabled(),
-                AudioCore::is_a2dp_output_enabled(),
-                "none"
-            );
+            // update Output Section 
+            sprintf((char*)a2dpName, "disconnnected");
 
+            if (a2dp.connected_details(btinfo)) {
+              //char macStr[18];
+              //macToStr(btinfo.mac, macStr, sizeof(macStr));
+
+              sprintf((char*)a2dpName, "%s (%s)", btinfo.name, btinfo.auto_reconnect ? "Auto" : "New"); 
+            }
+
+            ui_update_stats_outputs(AudioCore::is_i2s_output_enabled(), a2dp.isConnected(), a2dpName);
+
+            // Update Stream Info
             if (HttpStreamEngine::getID3(meta) && meta.header_found) {
                 ui_update_player_id3(
                     true, meta.artist, meta.title,
@@ -132,6 +162,7 @@ void lvgl_init() {
               ui_update_player_id3(true, "-", "-", "-", 0, nullptr, 0, 0);
             }
 
+            // Update Wifi section
             ui_update_stats_wifi(
                 WiFi.status(),
                 WiFi.SSID().c_str(),

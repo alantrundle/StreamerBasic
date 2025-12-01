@@ -97,11 +97,9 @@ void ui_update_stats_outputs(bool i2s_on,
                              bool a2dp_on,
                              const char* a2dp_name)
 {
-    static bool last_i2s_on  = 0;
-    static bool last_a2dp_on = 0;
-    static char last_name[32] = "";
-
-    char buf[32];
+    static bool last_i2s_on   = false;
+    static bool last_a2dp_on  = false;
+    static char last_name[64] = "";   // ✅ was too small
 
     /* ---------------- I2S OUTPUT STATE ---------------- */
     if (i2s_on != last_i2s_on) {
@@ -124,15 +122,20 @@ void ui_update_stats_outputs(bool i2s_on,
     }
 
     /* ---------------- A2DP DEVICE NAME ---------------- */
-    if (a2dp_name && strcmp(a2dp_name, last_name) != 0) {
-        strncpy(last_name, a2dp_name, sizeof(last_name));
-        last_name[sizeof(last_name)-1] = '\0';
+    if (objects.stats_lbl_a2dp_name) {
 
-        if (objects.stats_lbl_a2dp_name) {
-            if (a2dp_on)
-                lv_label_set_text(objects.stats_lbl_a2dp_name, last_name);
-            else
-                lv_label_set_text(objects.stats_lbl_a2dp_name, "—");
+        // ✅ Update label if name OR connection state changes
+        if (!a2dp_on) {
+            lv_label_set_text(objects.stats_lbl_a2dp_name, "—");
+            last_name[0] = '\0';
+        }
+        else if (a2dp_name &&
+                 strcmp(a2dp_name, last_name) != 0) {
+
+            strncpy(last_name, a2dp_name, sizeof(last_name) - 1);
+            last_name[sizeof(last_name) - 1] = '\0';
+
+            lv_label_set_text(objects.stats_lbl_a2dp_name, last_name);
         }
     }
 }

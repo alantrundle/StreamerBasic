@@ -227,3 +227,153 @@ size_t id3v2_consume(const uint8_t* buf, size_t len,
 
     return take;
 }
+
+// Artwork
+static String url_encode(const char* s)
+{
+    String out;
+    char buf[4];
+
+    while (*s) {
+        char c = *s++;
+        if (isalnum(c) || c=='-' || c=='_' || c=='.')
+            out += c;
+        else if (c == ' ')
+            out += '+';
+        else {
+            snprintf(buf, sizeof(buf), "%%%02X", (uint8_t)c);
+            out += buf;
+        }
+    }
+    return out;
+}
+
+#include <HTTPClient.h>
+#include <esp_heap_caps.h>
+
+static bool extract_art_url(const char* json,
+                            char* out,
+                            size_t out_sz)
+{
+    const char* k = "\"artworkUrl100\":\"";
+    const char* p = strstr(json, k);
+    if (!p) return false;
+
+    p += strlen(k);
+    const char* e = strchr(p, '"');
+    if (!e) return false;
+
+    size_t n = e - p;
+    if (n + 1 > out_sz) return false;
+
+    memcpy(out, p, n);
+    out[n] = 0;
+    return true;
+}
+
+// Album Artwork
+bool id3_fetch_album_art_jpeg(
+    const char* artist,
+    const char* album,
+    uint8_t**   out_jpeg,
+    size_t*    out_len)
+{
+    if (!artist || !album || !out_jpeg || !out_len)
+        return false;
+
+    *out_jpeg = nullptr;
+    *out_len  = 0;
+
+    String term = String(artist) + " " + album;
+    term.replace(" ", "+");
+
+    String url =
+        "https://itunes.apple.com/search?term=" +
+        term +
+        "&entity=album&limit=1";
+
+    HTTPClient http;
+    http.setReuse(false);
+
+    if (!http.begin(url))
+        return false;
+
+    int code = http.GET();
+    if (code != HTTP_CODE_OK) {
+        http.end();
+        return false;
+    }
+
+    int json_len = http.getSize();
+    if (json_len <= 0 || json_len > 8192) {
+        http.end();
+        return false;
+    }
+
+    char* json = (char*)heap_caps_malloc(
+        json_len + 1,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
+    if (!json) {
+        http.end();
+        return false;
+    }
+
+    WiFiClient* s = http.getStreamPtr();
+    size_t rd = s->readBytes(json, json_len);
+    json[rd] = 0;
+    http.end();
+
+    char art_url[256];
+    if (!extract_art_url(json, art_url, sizeof(art_url))) {
+        heap_caps_free(json);
+        return false;
+    }
+
+    heap_caps_free(json);
+
+    // upgrade to larger size
+    String img_url = art_url;
+    img_url.replace("100x100", "300x300");
+
+    HTTPClient img;
+    img.setReuse(false);
+
+    if (!img.begin(img_url))
+        return false;
+
+    code = img.GET();
+    if (code != HTTP_CODE_OK) {
+        img.end();
+        return false;
+    }
+
+    int len = img.getSize();
+    if (len <= 0 || len > 120 * 1024) {
+        img.end();
+        return false;
+    }
+
+    uint8_t* buf = (uint8_t*)heap_caps_malloc(
+        len,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
+    if (!buf) {
+        img.end();
+        return false;
+    }
+
+    rd = img.getStreamPtr()->readBytes(buf, len);
+    img.end();
+
+    if (rd != (size_t)len) {
+        heap_caps_free(buf);
+        return false;
+    }
+
+    *out_jpeg = buf;
+    *out_len  = len;
+
+    Serial.printf("[ART] ✅ Apple artwork %u bytes\n", (unsigned)len);
+    return true;
+}
