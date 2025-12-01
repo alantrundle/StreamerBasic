@@ -25,7 +25,6 @@ static void connectWiFi() {
   Serial.printf("[WIFI] Connecting to %s\n", WIFI_SSID);
 
   WiFi.mode(WIFI_STA);
- 
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
   uint32_t start = millis();
@@ -38,8 +37,7 @@ static void connectWiFi() {
     }
   }
 
-  // enable Player controls button
-  lv_obj_clear_state(objects.start_btn, LV_STATE_DISABLED);
+
 
   Serial.printf("\n[WIFI] ✅ Connected, IP=%s\n",
                 WiFi.localIP().toString().c_str());
@@ -79,14 +77,14 @@ void setup() {
   esp_wifi_set_ps(WIFI_PS_NONE);
   connectWiFi();
 
-  // 3. HTTP streamer (NET buffers + task)
-  HttpStreamEngine::begin();
-
   // 2. Audio core (PCM, EQ, I2S, decoder tasks)
   if (!AudioCore::init()) {
     Serial.println("[MAIN] ❌ AudioCore init failed");
     while (true) delay(1000);
   }
+
+  // 3. HTTP streamer (NET buffers + task)
+  HttpStreamEngine::begin();
 
   a2dp.set_device_name("AT1053-Source");
   a2dp.set_autoreconnection(true);
@@ -97,6 +95,9 @@ void setup() {
   a2dp.start();
 
   esp_bt_sleep_disable();
+
+  // enable Player controls button now were up!
+  lv_obj_clear_state(objects.start_btn, LV_STATE_DISABLED);
 
   memUsage();
 }

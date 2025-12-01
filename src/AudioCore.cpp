@@ -225,6 +225,7 @@ int AudioCore::net_filled_slots() {
 // ======================================================
 void AudioCore::clearPCM() {
 
+  // 1️⃣ Clear indices atomically (fast, safe)
   portENTER_CRITICAL(&a2dp_mux);
 
   a2dp_write_index    = 0;
@@ -232,10 +233,16 @@ void AudioCore::clearPCM() {
   a2dp_read_index_i2s = 0;
   a2dp_buffer_fill    = 0;
 
-  // Optional but useful for silence guarantee
-  memset(a2dp_buffer, 0, PCM_BUFFER_BYTES);
-
   portEXIT_CRITICAL(&a2dp_mux);
+
+  // 2️⃣ Validate buffer
+  if (!a2dp_buffer) {
+    Serial.println("[Audio] ❌ PCM buffer NULL — cannot clear");
+    return;
+  }
+
+  // 3️⃣ Clear buffer OUTSIDE critical section
+  memset(a2dp_buffer, 0, PCM_BUFFER_BYTES);
 
   Serial.println("[Audio] 🧹 PCM buffer cleared");
 }
