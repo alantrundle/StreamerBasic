@@ -9,7 +9,7 @@ static const char* WIFI_PASS = "cdf45424e4";
 // NET / HTTP buffering
 // ------------------------------
 #define MAX_CHUNK_SIZE 1025
-#define NUM_BUFFERS   512
+#define NUM_BUFFERS   256
 
 // ✅ NEW robust stall handling
 constexpr uint32_t STALL_RETRY_TIMEOUT_MS = 800;
