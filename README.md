@@ -1,4 +1,5 @@
 All in one HTTP streaming, decoding & output
+
 - Fully Automated MP3 & AAC detection at header level
 - Supports ID3v2 Tags
 - Supports A2DP sink devices (headphones) & Auto Reconnect code
@@ -8,11 +9,13 @@ All in one HTTP streaming, decoding & output
 - Supports Pause, Play, Stop, Next & Prev tracks
 
 Issues
+
 LVGL + BT + WiFi pushes DRAM too far, so LVGL runs mostly in PSRAM so the dual-buffering is increidibly slow, however putting lvbuf1 in DRAM crashes WiFi + BT
 WiFi due to co-existance crashes sometimes. I work around by resseting WiFi when i get a -1 failed error during fetching/ opening.
 Sometimes crashes - I am working on them when i see them.
 
 To-Do
+
 - Plex Media Server intergration
 - Bug fixes
 - Ogg Vorbis & support for other codes + better AAC support
