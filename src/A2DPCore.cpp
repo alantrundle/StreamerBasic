@@ -111,16 +111,14 @@ void A2DPCore::start() {
   esp_a2d_source_init();
 
   // prevent sleep
-  esp_wifi_set_ps(WIFI_PS_NONE);
-  esp_bt_sleep_disable();
+  //esp_wifi_set_ps(WIFI_PS_NONE);
+  //esp_bt_sleep_disable();
 
   // ✅ NEW: block manual scans during auto-reconnect window ONLY
   if (auto_reconnect_) {
     block_manual_scan_ = true;
     autoreconnect_start_ms_ = millis();
   }
-
-
 
   Serial.println("[A2DP] ✅ Source ready");
 }
@@ -376,6 +374,7 @@ void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
 // AVRCP TG (unchanged)
 // ------------------------------------------------------------
 
-void A2DPCore::avrc_tg_cb(esp_avrc_tg_cb_event_t,
-                          esp_avrc_tg_cb_param_t*) {
+void A2DPCore::avrc_tg_cb(esp_avrc_tg_cb_event_t, esp_avrc_tg_cb_param_t*) {
+
+  
 }

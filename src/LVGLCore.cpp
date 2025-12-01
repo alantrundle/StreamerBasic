@@ -55,18 +55,21 @@ void lvgl_init() {
   lv_display_set_flush_cb(lv_disp, my_flush);
 
   // ✅ Larger buffers = fewer flushes
-  const int lines = 100;  // tuned: reduces stripe effect heavily
-  const size_t bytes =
-    (size_t)TFT_HOR_RES * lines * sizeof(lv_color_t);
+  const int lines = 160;  // tuned: reduces stripe effect heavily
+  const size_t bytes = (size_t)TFT_HOR_RES * lines * sizeof(lv_color_t);
 
   lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  lvbuf2 = nullptr;
+  //lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
+  //lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  //lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 
   if (lvbuf1 && lvbuf2) {
     lv_display_set_buffers(
       lv_disp,
       lvbuf1,
-      lvbuf2,
+      nullptr,
       bytes,
       LV_DISPLAY_RENDER_MODE_PARTIAL
     );
@@ -75,7 +78,7 @@ void lvgl_init() {
     lv_display_set_buffers(
       lv_disp,
       lvbuf1,
-      nullptr,
+      lvbuf2,
       bytes,
       LV_DISPLAY_RENDER_MODE_PARTIAL
     );
@@ -90,47 +93,69 @@ void lvgl_init() {
   // --- UI ---
   ui_init();
 
-  // --- LVGL task ---
+  constexpr uint32_t UI_UPDATE_PERIOD_MS = 50;
+  constexpr uint32_t LVGL_PERIOD_MS      = 10;
+
   xTaskCreatePinnedToCore(
     [](void*) {
 
-      for (;;) {
+    uint32_t last_ui_update = 0;
 
-        ui_tick();
-        lv_timer_handler();   // ✅ must run often
+    for (;;) {
 
-        ID3v2Meta meta;
-        MP3StatusInfo info;
+        // 1️⃣ Run LVGL engine FREQUENTLY
+        lv_timer_handler();
 
-        // ---- UI updates ----
-        ui_update_stats_bars(HttpStreamEngine::net_fill_percent(), AudioCore::pcm_buffer_percent());
-        ui_update_stats_outputs(AudioCore::is_i2s_output_enabled(), AudioCore::is_a2dp_output_enabled(), "none");
-        
+        // 2️⃣ Run application/widget updates LESS often
+        uint32_t now = millis();
+        if (now - last_ui_update >= UI_UPDATE_PERIOD_MS) {
+            last_ui_update = now;
 
-        if (HttpStreamEngine::getID3(meta)) {
-          ui_update_player_id3(true, meta.artist, meta.title, meta.album, (int)meta.track);
-        } else {
-          ui_update_player_id3(false, "-", "-", "-", -1);
+            ID3v2Meta meta;
+            MP3StatusInfo info;
+
+            ui_update_stats_bars(
+                HttpStreamEngine::net_fill_percent(),
+                AudioCore::pcm_buffer_percent()
+            );
+
+            ui_update_stats_outputs(
+                AudioCore::is_i2s_output_enabled(),
+                AudioCore::is_a2dp_output_enabled(),
+                "none"
+            );
+
+            if (HttpStreamEngine::getID3(meta)) {
+                ui_update_player_id3(
+                    true, meta.artist, meta.title,
+                    meta.album, (int)meta.track
+                );
+            }
+
+            ui_update_stats_wifi(
+                WiFi.status(),
+                WiFi.SSID().c_str(),
+                WiFi.localIP().toString().c_str()
+            );
+
+            if (AudioCore::getMP3Info(info)) {
+                ui_update_stats_decoder(
+                    info.codec, info.samplerate,
+                    info.channels, info.kbps
+                );
+            }
         }
 
-        ui_update_stats_wifi(WiFi.status(), WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-
-        if (AudioCore::getMP3Info(info)) {
-          ui_update_stats_decoder(info.codec, info.samplerate, info.channels, info.kbps);
-        } else {
-          ui_update_stats_decoder(0, 0, 0, 0);
-        }
-
-       vTaskDelay(pdMS_TO_TICKS(20));
-
-      }
-    },
-    "LVGL",
-    6144,
-    nullptr,
-    LVGL_TASK_PRIORITY,               // ✅ KEEP LOW PRIORITY
-    nullptr,
-    1
+        // 3️⃣ Delay sets LVGL cadence
+        vTaskDelay(pdMS_TO_TICKS(LVGL_PERIOD_MS));
+    }
+  },
+  "LVGL",
+  8192,                    // ✅ safe stack
+  nullptr,
+  LVGL_TASK_PRIORITY,
+  nullptr,  
+  1
   );
 
   Serial.println("[LVGL] TFT setup done");

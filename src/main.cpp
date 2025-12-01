@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
-
+#include "esp_wifi.h"
 
 #include "Config.h"
 #include "AudioCore.h"
@@ -11,7 +11,6 @@
 #include "ui/ui.h"
 
 #include "AudioPlayer.h"
-
 
 #include "sdkconfig.h"
 
@@ -39,7 +38,6 @@ static void connectWiFi() {
     }
   }
 
-
   // enable Player controls button
   lv_obj_clear_state(objects.start_btn, LV_STATE_DISABLED);
 
@@ -55,6 +53,16 @@ void btScanCallback(int count, const char* const* names, const char* const* macs
 
 }
 
+void memUsage() {
+
+size_t dma_free = heap_caps_get_largest_free_block(MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+size_t int_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+
+Serial.printf("DMA largest free: %u bytes\n", dma_free);
+Serial.printf("Internal free:   %u bytes\n", int_free);
+
+}
+
 // ------------------------------------------------------------
 // Arduino setup
 // ------------------------------------------------------------
@@ -65,9 +73,14 @@ void setup() {
 
   Serial.println("\n=== StreamerBasic ===");
 
-
-
   lvgl_init();
+
+  // 1. Wi-Fi
+  esp_wifi_set_ps(WIFI_PS_NONE);
+  connectWiFi();
+
+  // 3. HTTP streamer (NET buffers + task)
+  HttpStreamEngine::begin();
 
   // 2. Audio core (PCM, EQ, I2S, decoder tasks)
   if (!AudioCore::init()) {
@@ -83,11 +96,9 @@ void setup() {
   a2dp.set_scan_callback(btScanCallback);
   a2dp.start();
 
-  // 1. Wi-Fi
-  connectWiFi();
+  esp_bt_sleep_disable();
 
-  // 3. HTTP streamer (NET buffers + task)
-  HttpStreamEngine::begin();
+  memUsage();
 }
 
 // ------------------------------------------------------------
