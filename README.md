@@ -3,7 +3,7 @@ All in one HTTP streaming, decoding & output
 - Fully Automated MP3 & AAC detection at header level
 - Supports ID3v2 Tags
 - Supports A2DP sink devices (headphones) & Auto Reconnect code
-- Supports I2S Output - PCM5102 used with developing
+- Supports I2S Output - PCM5102 used when developing
 - Dual Read PCM buffer for sim outputs independantly
 - Supports LVGL with touch (Runable Demo included) for ST7796
 - Supports Pause, Play, Stop, Next & Prev tracks
@@ -22,7 +22,13 @@ To-Do
 - LVGL dual buffering in DRAM
 
 Pros
+
 Pretty stable on the whole
+
+Currently Testing
+
+LVGL running in DRAM - 8 lines single buffer
+24 hour soak test
 
 
 Recommend Kit
