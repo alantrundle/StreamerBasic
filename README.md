@@ -1,5 +1,7 @@
 All in one HTTP streaming, decoding & output
 
+Must use WROVER with 8MB PSRAM - required for BT classic mode
+
 - Fully Automated MP3 & AAC detection at header level
 - Supports ID3v2 Tags
 - Supports A2DP sink devices (headphones) & Auto Reconnect code
