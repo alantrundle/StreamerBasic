@@ -236,7 +236,7 @@ void HttpStreamEngine::httpFillTask(void*)
 
     // ---------- idle ----------
     if (!stream_running || !g_url_open) {
-      vTaskDelay(30);
+      vTaskDelay(2);
       continue;
     }
 
@@ -245,12 +245,11 @@ void HttpStreamEngine::httpFillTask(void*)
 
     while (sock.connected() || http.connected()) {
       Serial.println("[HTTP] trying to close HTTP");
-      // short delay
-      delay(100);
+      vTaskDelay(1); 
     }
 
     if (!http.begin(sock, g_open_url)) {
-      vTaskDelay(200);
+      vTaskDelay(2);
       continue;
     }
 
@@ -262,7 +261,7 @@ void HttpStreamEngine::httpFillTask(void*)
     if (code != HTTP_CODE_OK && code != HTTP_CODE_PARTIAL_CONTENT) {
       http.end();
       sock.stop();
-      vTaskDelay(500);
+      vTaskDelay(2);
       continue;
     }
 
@@ -435,7 +434,7 @@ void HttpStreamEngine::httpFillTask(void*)
         break;
       }
 
-    vTaskDelay(20);
+    vTaskDelay(1);
 }
 
   // -------- final teardown --------
