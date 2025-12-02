@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include "esp_wifi.h"
+#include "esp_system.h"
 
 #include "Config.h"
 #include "AudioCore.h"
@@ -83,38 +84,64 @@ Serial.printf("Internal free:   %u bytes\n", int_free);
 
 }
 
-void health_log() {
-  static uint32_t last = 0;
-  static uint32_t minInt = UINT32_MAX;
-  static uint32_t minDMA = UINT32_MAX;
-
-  uint32_t now = millis();
-
-  if (last == 0 || now - last >= 5UL * 60UL * 1000UL) {
-    last = now;
-
-    uint32_t intFree =
-      heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-    uint32_t dmaFree =
-      heap_caps_get_largest_free_block(MALLOC_CAP_DMA);
-
-    if (intFree < minInt) minInt = intFree;
-    if (dmaFree < minDMA) minDMA = dmaFree;
-
-    Serial.printf(
-      "[HEALTH] up=%lus "
-      "Int=%u(min=%u) DMA=%u(min=%u) "
-      "WiFi=%d BT=%d PCM=%d%% NET=%d%%\n",
-      now / 1000,
-      intFree, minInt,
-      dmaFree, minDMA,
-      WiFi.status(),
-      a2dp.isConnected(),
-      AudioCore::pcm_buffer_percent(),
-      HttpStreamEngine::net_fill_percent()
-    );
+static const char* wifi_ps_str(wifi_ps_type_t ps) {
+  switch (ps) {
+    case WIFI_PS_NONE:      return "NONE";
+    case WIFI_PS_MIN_MODEM: return "MIN";
+    case WIFI_PS_MAX_MODEM: return "MAX";
+    default:               return "?";
   }
 }
+
+
+void health_log() {
+  static uint32_t last = 0;
+  uint32_t now = millis();
+
+  if (now - last < 5UL * 60UL * 1000UL)
+    return;
+  last = now;
+
+  // ---- Heap ----
+  uint32_t int_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+  uint32_t int_min  = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL);
+
+  uint32_t dma_free = heap_caps_get_largest_free_block(MALLOC_CAP_DMA);
+  uint32_t dma_min  = heap_caps_get_minimum_free_size(MALLOC_CAP_DMA);
+
+  // ---- WiFi info ----
+  wifi_ps_type_t ps;
+  esp_wifi_get_ps(&ps);
+
+  wifi_ap_record_t ap{};
+  bool ap_ok = (esp_wifi_sta_get_ap_info(&ap) == ESP_OK);
+
+  // ---- Log ----
+  Serial.printf(
+    "[HEALTH] up=%lus "
+    "Int=%u(min=%u) "
+    "DMA=%u(min=%u) "
+    "WiFi=%d PS=%s "
+    "RSSI=%d Ch=%d "
+    "BT=%d "
+    "PCM=%d%% NET=%d%%\n",
+    now / 1000,
+
+    int_free, int_min,
+    dma_free, dma_min,
+
+    WiFi.status(),
+    wifi_ps_str(ps),
+
+    ap_ok ? ap.rssi : 0,
+    ap_ok ? ap.primary : 0,
+
+    a2dp.isConnected(),
+    AudioCore::pcm_buffer_percent(),
+    HttpStreamEngine::net_fill_percent()
+  );
+}
+
 
 // ------------------------------------------------------------
 // Arduino setup
@@ -129,9 +156,8 @@ void setup() {
   lvgl_init();
 
   // 1. Wi-Fi
-  esp_wifi_set_ps(WIFI_PS_NONE);
-  connectWiFi();
-
+  //esp_wifi_set_ps(WIFI_PS_NONE);
+  
   // 2. Audio core (PCM, EQ, I2S, decoder tasks)
   if (!AudioCore::init()) {
     Serial.println("[MAIN] ❌ AudioCore init failed");
@@ -148,6 +174,8 @@ void setup() {
   a2dp.set_connectionstate_callback(onA2DPConnectionState);
   a2dp.set_scan_callback(btScanCallback);
   a2dp.start();
+
+  connectWiFi();
 
   //esp_bt_sleep_disable();
 
