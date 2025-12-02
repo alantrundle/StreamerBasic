@@ -2,12 +2,7 @@
 #include "LVGLCore.h"
 #include "WiFi.h"
 
-
 extern A2DPCore a2dp;
-
-char* a2dpName;
-
-
 
 // Helpers
 void macToStr(const uint8_t mac[6], char* out, size_t out_len) {
@@ -132,18 +127,17 @@ static void ui_update_timer_cb(lv_timer_t *t) {
   );
 
   // Output section
-  a2dpName = (char*)heap_caps_malloc(60, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  sprintf(a2dpName, "disconnected");
+  static char a2dpName[32];
+
+  strlcpy(a2dpName, "disconnected", sizeof(a2dpName));
 
   if (a2dp.connected_details(btinfo)) {
-    sprintf(a2dpName, "%s (%s)", btinfo.name, btinfo.auto_reconnect ? "Auto" : "New");
-  }
+    const char* name = (btinfo.name && btinfo.name[0]) ? btinfo.name : "Unknown";
+    snprintf(a2dpName, sizeof(a2dpName), "%s (%s)", name, btinfo.auto_reconnect ? "Auto" : "New");
+  } 
 
-  ui_update_stats_outputs(
-    AudioCore::is_i2s_output_enabled(),
-    a2dp.isConnected(),
-    a2dpName
-  );
+  ui_update_stats_outputs(AudioCore::is_i2s_output_enabled(), a2dp.isConnected(), a2dpName);
+
 
   // ID3 metadata
   if (HttpStreamEngine::getID3(meta) && meta.header_found) {
