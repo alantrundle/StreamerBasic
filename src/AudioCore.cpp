@@ -396,7 +396,7 @@ bool AudioCore::init() {
   xTaskCreatePinnedToCore(
       decodeTask,
       "DECODE",
-      8192,
+      4096,
       nullptr,
       DECODER_TASK_PRIORITY,
       nullptr,
@@ -533,7 +533,7 @@ void AudioCore::decodeTask(void*) {
     // sit here whilst priming net buffer.
     if (priming) {
       if (net_filled_slots() < (int)PRIME_SLOTS) {
-        vTaskDelay(10);
+        vTaskDelay(1);
         continue;
       }
       priming = false;
@@ -552,7 +552,7 @@ void AudioCore::decodeTask(void*) {
       if (fill >= MIN_A2DP_BYTES) {
         a2dp_output = true;
         a2dp_enabled_this_session = true;
-        Serial.println("Enabling A2DP");
+        Serial.println("[Decoder] Enabling A2DP output.");
       }
     }
     else {
@@ -568,7 +568,7 @@ void AudioCore::decodeTask(void*) {
 
     // decoder paused. sit and wait...
     if (AudioCore::decoder_paused || AudioCore::decoder_auto_paused) {
-      vTaskDelay(20);
+      vTaskDelay(2);
       continue;
     }
 
@@ -643,6 +643,6 @@ void AudioCore::decodeTask(void*) {
     HttpStreamEngine::netSize[slot]      = 0;
     HttpStreamEngine::netRead = (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
 
-    vTaskDelay(5);
+    vTaskDelay(2);
   }
 }

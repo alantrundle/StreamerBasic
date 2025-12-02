@@ -1,19 +1,7 @@
 // TFT includes
 #include "LVGLCore.h"
 #include "WiFi.h"
-#include "gfxDriver.h"
 
-#include <lvgl.h>
-#include "ui/ui.h"
-#include "ui/bindings.h"
-
-#include "HttpStreamEngine.h"
-#include "AudioCore.h"
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-#include "A2DPCore.h"
 
 extern A2DPCore a2dp;
 
@@ -74,21 +62,21 @@ void lvgl_init() {
   lv_display_set_flush_cb(lv_disp, my_flush);
 
   // ✅ Larger buffers = fewer flushes
-  const int lines = 160;  // tuned: reduces stripe effect heavily
+  const int lines = 8;  // tuned: reduces stripe effect heavily
   const size_t bytes = (size_t)TFT_HOR_RES * lines * sizeof(lv_color_t);
 
-  lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  //lvbuf2 = nullptr;
-
-  //lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  //lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  //lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  
+  lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   //lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  lvbuf2 = nullptr;
 
   if (lvbuf1 && lvbuf2) {
     lv_display_set_buffers(
       lv_disp,
       lvbuf1,
-      nullptr,
+      lvbuf2,
       bytes,
       LV_DISPLAY_RENDER_MODE_PARTIAL
     );
@@ -97,7 +85,7 @@ void lvgl_init() {
     lv_display_set_buffers(
       lv_disp,
       lvbuf1,
-      lvbuf2,
+      nullptr,
       bytes,
       LV_DISPLAY_RENDER_MODE_PARTIAL
     );
@@ -112,77 +100,76 @@ void lvgl_init() {
   // --- UI ---
   ui_init();
 
-  constexpr uint32_t UI_UPDATE_PERIOD_MS = 25;
-  constexpr uint32_t LVGL_PERIOD_MS      = 10;
+  lv_timer_create(ui_update_timer_cb, UI_UPDATE_PERIOD_MS, nullptr);
 
   xTaskCreatePinnedToCore([](void*) {
 
-    uint32_t last_ui_update = 0;
-    a2dpName = (char*)heap_caps_malloc(60, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
     for (;;) {
 
-        // 1️⃣ Run LVGL engine FREQUENTLY
         lv_timer_handler();
 
-        // 2️⃣ Run application/widget updates LESS often
-        uint32_t now = millis();
-        if (now - last_ui_update >= UI_UPDATE_PERIOD_MS) {
-            last_ui_update = now;
-
-            ID3v2Meta meta;
-            MP3StatusInfo info;
-
-            A2DPConnectedDetails btinfo;
-
-            // Update Buffer section
-            ui_update_stats_bars(
-                HttpStreamEngine::net_fill_percent(),
-                AudioCore::pcm_buffer_percent()
-            );
-
-            // update Output Section 
-            sprintf((char*)a2dpName, "disconnnected");
-
-            if (a2dp.connected_details(btinfo)) {
-              //char macStr[18];
-              //macToStr(btinfo.mac, macStr, sizeof(macStr));
-
-              sprintf((char*)a2dpName, "%s (%s)", btinfo.name, btinfo.auto_reconnect ? "Auto" : "New"); 
-            }
-
-            ui_update_stats_outputs(AudioCore::is_i2s_output_enabled(), a2dp.isConnected(), a2dpName);
-
-            // Update Stream Info
-            if (HttpStreamEngine::getID3(meta) && meta.header_found) {
-                ui_update_player_id3(
-                    true, meta.artist, meta.title,
-                    meta.album, (int)meta.track, nullptr, 0, 0);
-            } else { 
-              ui_update_player_id3(true, "-", "-", "-", 0, nullptr, 0, 0);
-            }
-
-            // Update Wifi section
-            ui_update_stats_wifi(
-                WiFi.status(),
-                WiFi.SSID().c_str(),
-                WiFi.localIP().toString().c_str()
-            );
-
-            if (AudioCore::getMP3Info(info)) {
-                ui_update_stats_decoder(
-                    info.codec, info.samplerate,
-                    info.channels, info.kbps
-                );
-            }
-        }
-
         // 3️⃣ Delay sets LVGL cadence
-        vTaskDelay(pdMS_TO_TICKS(LVGL_PERIOD_MS));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
-  }, "LVGL", 8192, nullptr, LVGL_TASK_PRIORITY, nullptr, 1);
+  }, "LVGL", 6144, nullptr, LVGL_TASK_PRIORITY, nullptr, 1);
 
   Serial.println("[LVGL] TFT setup done");
+}
+
+// -------------------------------------------------
+// ✅ GUI Updates - LVGL Timer
+// -------------------------------------------------
+static void ui_update_timer_cb(lv_timer_t *t) {
+
+  ID3v2Meta meta;
+  MP3StatusInfo info;
+  A2DPConnectedDetails btinfo;
+
+  // Buffer stats
+  ui_update_stats_bars(
+    HttpStreamEngine::net_fill_percent(),
+    AudioCore::pcm_buffer_percent()
+  );
+
+  // Output section
+  a2dpName = (char*)heap_caps_malloc(60, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  sprintf(a2dpName, "disconnected");
+
+  if (a2dp.connected_details(btinfo)) {
+    sprintf(a2dpName, "%s (%s)", btinfo.name, btinfo.auto_reconnect ? "Auto" : "New");
+  }
+
+  ui_update_stats_outputs(
+    AudioCore::is_i2s_output_enabled(),
+    a2dp.isConnected(),
+    a2dpName
+  );
+
+  // ID3 metadata
+  if (HttpStreamEngine::getID3(meta) && meta.header_found) {
+    ui_update_player_id3(
+      true, meta.artist, meta.title,
+      meta.album, (int)meta.track,
+      nullptr, 0, 0
+    );
+  } else {
+    ui_update_player_id3(true, "-", "-", "-", 0, nullptr, 0, 0);
+  }
+
+  // WiFi
+  ui_update_stats_wifi(
+    WiFi.status(),
+    WiFi.SSID().c_str(),
+    WiFi.localIP().toString().c_str()
+  );
+
+  // Decoder info
+  if (AudioCore::getMP3Info(info)) {
+    ui_update_stats_decoder(
+      info.codec, info.samplerate,
+      info.channels, info.kbps
+    );
+  }
 }
 
 // -------------------------------------------------
@@ -219,7 +206,6 @@ static void my_flush(lv_display_t *disp,
 // -------------------------------------------------
 // Touch
 // -------------------------------------------------
-
 static void my_touch_read(lv_indev_t*, lv_indev_data_t *data) {
   uint16_t x=0, y=0; bool pressed=false;
   bool ok = display.readTouch(x, y, pressed);

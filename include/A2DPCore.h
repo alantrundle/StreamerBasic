@@ -43,7 +43,6 @@ public:
   void set_scan_callback(A2DPScanCallback cb);
   void set_pcm_callback(esp_a2d_source_data_cb_t cb);
   void set_autoreconnection(bool enable);
-  void set_sleepmode(bool enable);
 
   void start();
   void start_scan(uint32_t duration_seconds);
@@ -94,5 +93,6 @@ private:
   bool     block_manual_scan_ = false;
   uint32_t autoreconnect_start_ms_ = 0;
 
+  bool connecting_via_autoreconnect_ = false;
   A2DPConnectedDetails connected_details_ {};
 };

@@ -83,6 +83,39 @@ Serial.printf("Internal free:   %u bytes\n", int_free);
 
 }
 
+void health_log() {
+  static uint32_t last = 0;
+  static uint32_t minInt = UINT32_MAX;
+  static uint32_t minDMA = UINT32_MAX;
+
+  uint32_t now = millis();
+
+  if (last == 0 || now - last >= 5UL * 60UL * 1000UL) {
+    last = now;
+
+    uint32_t intFree =
+      heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    uint32_t dmaFree =
+      heap_caps_get_largest_free_block(MALLOC_CAP_DMA);
+
+    if (intFree < minInt) minInt = intFree;
+    if (dmaFree < minDMA) minDMA = dmaFree;
+
+    Serial.printf(
+      "[HEALTH] up=%lus "
+      "Int=%u(min=%u) DMA=%u(min=%u) "
+      "WiFi=%d BT=%d PCM=%d%% NET=%d%%\n",
+      now / 1000,
+      intFree, minInt,
+      dmaFree, minDMA,
+      WiFi.status(),
+      a2dp.isConnected(),
+      AudioCore::pcm_buffer_percent(),
+      HttpStreamEngine::net_fill_percent()
+    );
+  }
+}
+
 // ------------------------------------------------------------
 // Arduino setup
 // ------------------------------------------------------------
@@ -116,7 +149,7 @@ void setup() {
   a2dp.set_scan_callback(btScanCallback);
   a2dp.start();
 
-  esp_bt_sleep_disable();
+  //esp_bt_sleep_disable();
 
   // enable Player controls button now were up!
   lv_obj_clear_state(objects.start_btn, LV_STATE_DISABLED);
@@ -134,9 +167,13 @@ void loop() {
     a2dp.loop();
     AudioPlayer_Loop();
 
+    health_log();
+
     //if (!a2dp.isConnected() && !a2dp.scan_blocked() && !scan_started) {
     //    a2dp.start_scan(10);
     //    scan_started = true;
     //}
+
+    delay(100);
 
   }

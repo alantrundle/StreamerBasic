@@ -138,7 +138,7 @@ void HttpStreamEngine::begin() {
   xTaskCreatePinnedToCore(
       httpFillTask,
       "HTTPFill",
-      8192,
+      4096,
       nullptr,
       HTTP_TASK_PRIORITY,
       &httpTaskHandle,
