@@ -29,8 +29,8 @@ constexpr int      STALL_MAX_RETRIES      = 10;
 #define I2S_WS    12
 #define I2S_DATA  13
 
-#define I2S_DMA_BUF_COUNT 3
-#define I2S_DMA_BUF_LEN 128
+#define I2S_DMA_BUF_COUNT 8
+#define I2S_DMA_BUF_LEN 256
 
 // ------------------------------
 // Decode cadence

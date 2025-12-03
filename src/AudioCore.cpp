@@ -433,7 +433,7 @@ void AudioCore::StopI2S() {
 
 void AudioCore::i2sPlaybackTask(void* /*param*/) {
 
-  constexpr size_t FRAMES_PER_CHUNK = 256;
+  constexpr size_t FRAMES_PER_CHUNK = I2S_DMA_BUF_LEN;
   constexpr size_t BYTES_PER_FRAME  = 4;   // L16 + R16
   constexpr size_t CHUNK_BYTES      = FRAMES_PER_CHUNK * BYTES_PER_FRAME;
 
