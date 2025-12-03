@@ -193,23 +193,29 @@ void ui_update_player_id3(bool has_meta,
                           uint16_t w,
                           uint16_t h)
 {
-    // Cache last values so we only update LVGL when they actually change
-    static bool  last_have_meta = false;
-    static char  last_artist[64] = "";
-    static char  last_title[64]  = "";
-    static char  last_album[64]  = "";
-    static int   last_track      = 0;
+    // Cache last values so LVGL is only updated when needed
+    static bool last_have_meta = false;
+    static char last_artist[64] = "";
+    static char last_title[64]  = "";
+    static char last_album[64]  = "";
+    static int  last_track      = 0;
 
     // Album art cache
     static const uint16_t* last_pixels = nullptr;
     static lv_image_dsc_t img_dsc;
 
-    char buf[64];
+    char buf[32];
 
     /* ---------- NO METADATA ---------- */
     if (!has_meta) {
+
         if (last_have_meta) {
             last_have_meta = false;
+
+            last_artist[0] = '\0';
+            last_title[0]  = '\0';
+            last_album[0]  = '\0';
+            last_track     = 0;
 
             if (objects.player_lbl_artist)
                 lv_label_set_text(objects.player_lbl_artist, "—");
@@ -221,7 +227,11 @@ void ui_update_player_id3(bool has_meta,
                 lv_label_set_text(objects.player_lbl_tracknumber, "—");
         }
 
-        last_pixels = nullptr;
+        if (objects.player_img_albumart && last_pixels) {
+            last_pixels = nullptr;
+            lv_image_set_src(objects.player_img_albumart, NULL);
+        }
+
         return;
     }
 
@@ -229,27 +239,42 @@ void ui_update_player_id3(bool has_meta,
 
     /* ---------- ARTIST ---------- */
     const char* artist_safe = (artist && *artist) ? artist : "Unknown Artist";
+    if (!artist || !*artist) {
+        last_artist[0] = '\0';   // force refresh
+    }
+
     if (strcmp(artist_safe, last_artist) != 0) {
-        strncpy(last_artist, artist_safe, sizeof(last_artist));
+        strncpy(last_artist, artist_safe, sizeof(last_artist) - 1);
         last_artist[sizeof(last_artist) - 1] = '\0';
+
         if (objects.player_lbl_artist)
             lv_label_set_text(objects.player_lbl_artist, last_artist);
     }
 
     /* ---------- TITLE ---------- */
     const char* title_safe = (title && *title) ? title : "Unknown Title";
+    if (!title || !*title) {
+        last_title[0] = '\0';
+    }
+
     if (strcmp(title_safe, last_title) != 0) {
-        strncpy(last_title, title_safe, sizeof(last_title));
+        strncpy(last_title, title_safe, sizeof(last_title) - 1);
         last_title[sizeof(last_title) - 1] = '\0';
+
         if (objects.player_lbl_title)
             lv_label_set_text(objects.player_lbl_title, last_title);
     }
 
     /* ---------- ALBUM ---------- */
     const char* album_safe = (album && *album) ? album : "Unknown Album";
+    if (!album || !*album) {
+        last_album[0] = '\0';
+    }
+
     if (strcmp(album_safe, last_album) != 0) {
-        strncpy(last_album, album_safe, sizeof(last_album));
+        strncpy(last_album, album_safe, sizeof(last_album) - 1);
         last_album[sizeof(last_album) - 1] = '\0';
+
         if (objects.player_lbl_album)
             lv_label_set_text(objects.player_lbl_album, last_album);
     }
@@ -257,9 +282,13 @@ void ui_update_player_id3(bool has_meta,
     /* ---------- TRACK NUMBER ---------- */
     if (track != last_track) {
         last_track = track;
+
         if (objects.player_lbl_tracknumber) {
-            if (track > 0) snprintf(buf, sizeof(buf), "%d", track);
-            else strcpy(buf, "—");
+            if (track > 0)
+                snprintf(buf, sizeof(buf), "%d", track);
+            else
+                strcpy(buf, "—");
+
             lv_label_set_text(objects.player_lbl_tracknumber, buf);
         }
     }
@@ -269,7 +298,10 @@ void ui_update_player_id3(bool has_meta,
         return;
 
     if (!pixels || w == 0 || h == 0) {
-        last_pixels = nullptr;
+        if (last_pixels) {
+            last_pixels = nullptr;
+            lv_image_set_src(objects.player_img_albumart, NULL);
+        }
         return;
     }
 
@@ -286,4 +318,3 @@ void ui_update_player_id3(bool has_meta,
 
     lv_image_set_src(objects.player_img_albumart, &img_dsc);
 }
-
