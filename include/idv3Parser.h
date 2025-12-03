@@ -1,7 +1,6 @@
 #pragma once
-#include <stdint.h>
-#include <stddef.h>
-#include <string.h>
+#include <Arduino.h>>
+
 
 // ---- Lightweight ID3v2 meta ----
 struct ID3v2Meta {
@@ -9,15 +8,18 @@ struct ID3v2Meta {
   uint8_t  ver_major;        // typically 3 or 4
   uint8_t  ver_minor;
   uint32_t tag_bytes;        // bytes collected (header+body [+footer if any])
+
   char     title[64];
   char     artist[64];
   char     album[64];
   char     year[8];
   int      track;
   char     genre[32];
+
+  // ✅ Album Art (APIC)
+  bool            albumArtValid;
+  uint16_t*       albumArtImage;
 };
-
-
 
 // Collector (per-session)
 struct ID3v2Collector {
@@ -38,21 +40,14 @@ void id3v2_reset_collector(ID3v2Collector* c);
 void id3v2_free_collector(ID3v2Collector* c);
 
 // Try to begin collection if `buf` looks like an ID3 header right at stream start.
-// `absolute_stream_pos` must be the absolute byte offset in the file/stream.
 void id3v2_try_begin(const uint8_t* buf, size_t len,
                      uint64_t absolute_stream_pos,
                      size_t max_packet_bytes,
                      ID3v2Collector* c);
 
-// Consume up to `len` bytes from `buf` into the collector. Returns bytes consumed.
-// If the tag finishes (or 3 packets reached), parses meta and stops collecting.
-size_t id3v2_consume(const uint8_t* buf, size_t len, ID3v2Collector* c, ID3v2Meta* m);
-
-bool id3_fetch_album_art_jpeg(
-    const char* artist,
-    const char* album,
-    uint8_t**   out_jpeg,
-    size_t*    out_len);
+// Consume up to `len` bytes from `buf` into the collector.
+size_t id3v2_consume(const uint8_t* buf, size_t len,
+                     ID3v2Collector* c, ID3v2Meta* m);
 
 #ifdef __cplusplus
 }

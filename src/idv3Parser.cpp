@@ -1,7 +1,8 @@
 #include <Arduino.h>
 #include "idv3Parser.h"
-#include <stdbool.h>
 #include <string.h>
+
+#include "JPEGDecoder.h"
 
 #if defined(ARDUINO_ARCH_ESP32)
   #include <esp_heap_caps.h>
@@ -12,368 +13,339 @@
   #define MALLOC_CAP_8BIT   0
 #endif
 
+// ============================================================
+// Helpers
+// ============================================================
+
 static inline uint32_t synchsafe_to_u32(const uint8_t b[4]) {
-  return ((uint32_t)(b[0] & 0x7F) << 21) |
-         ((uint32_t)(b[1] & 0x7F) << 14) |
-         ((uint32_t)(b[2] & 0x7F) <<  7) |
-         ((uint32_t)(b[3] & 0x7F));
+    return ((uint32_t)(b[0] & 0x7F) << 21) |
+           ((uint32_t)(b[1] & 0x7F) << 14) |
+           ((uint32_t)(b[2] & 0x7F) << 7)  |
+           ((uint32_t)(b[3] & 0x7F));
 }
 
+// ============================================================
+// JPEG helpers
+// ============================================================
+
+static const uint8_t* find_jpeg_start(const uint8_t* buf, size_t len) {
+    for (size_t i = 0; i + 1 < len; i++) {
+        if (buf[i] == 0xFF && buf[i+1] == 0xD8)
+            return buf + i;
+    }
+    return nullptr;
+}
+
+// ============================================================
+// APIC parsing (SAFE)
+// ============================================================
+
+static void parseAPIC(const uint8_t* frame, size_t len, ID3v2Meta& tags) {
+
+    if (!frame || len < 32)
+        return;
+
+    size_t p = 0;
+    uint8_t encoding = frame[p++];
+
+    // MIME
+    while (p < len && frame[p] != 0) p++;
+    if (++p >= len) return;
+
+    uint8_t pictureType = frame[p++];
+
+    // Description
+    if (encoding == 0 || encoding == 3) {
+        while (p < len && frame[p] != 0) p++;
+        p++;
+    } else {
+        while (p + 1 < len) {
+            if (frame[p] == 0 && frame[p+1] == 0) {
+                p += 2;
+                break;
+            }
+            p += 2;
+        }
+    }
+
+    if (p >= len) return;
+
+    const uint8_t* blob     = frame + p;
+    size_t         blob_len = len - p;
+
+    const uint8_t* img = find_jpeg_start(blob, blob_len);
+    if (!img) {
+        Serial.println("[ID3] ❌ APIC no JPEG");
+        return;
+    }
+
+    size_t img_len = blob + blob_len - img;
+
+    // Scan JPEG markers safely
+    for (size_t i = 2; i + 3 < img_len; ) {
+
+        if (img[i] != 0xFF) { i++; continue; }
+
+        uint8_t marker = img[i + 1];
+
+        // Progressive JPEG → reject
+        if (marker == 0xC2) {
+            Serial.println("[ID3] ❌ Progressive JPEG");
+            return;
+        }
+
+        // Baseline JPEG
+        if (marker == 0xC0) {
+
+            bool front = (pictureType == 3);
+            if (tags.albumArtValid && !front)
+                return;
+
+            uint16_t* out = (uint16_t*)heap_caps_malloc(
+                120 * 120 * sizeof(uint16_t),
+                MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT
+            );
+
+            if (!out) {
+                Serial.println("[ID3] ❌ PSRAM alloc fail");
+                return;
+            }
+
+            int rc = JpegDecode565(img, img_len, out);
+            if (rc != 0) {
+                Serial.printf("[ID3] ❌ JPEG decode failed (%d)\n", rc);
+                heap_caps_free(out);
+                return;
+            }
+
+            // Replace existing safely
+            if (tags.albumArtImage)
+                heap_caps_free(tags.albumArtImage);
+
+            tags.albumArtImage = out;
+            tags.albumArtValid = true;
+
+            Serial.println("[ID3] ✅ Album art decoded");
+            return;
+        }
+
+        if (i + 4 >= img_len)
+            break;
+
+        uint16_t seglen = (img[i+2] << 8) | img[i+3];
+        if (seglen < 2 || i + 2 + seglen > img_len)
+            break;
+
+        i += 2 + seglen;
+    }
+}
+
+// ============================================================
+// Reset helpers
+// ============================================================
+
 void id3v2_reset_meta(ID3v2Meta* m) {
-  if (!m) return;
-  memset(m, 0, sizeof(*m));
+    if (!m) return;
+
+    if (m->albumArtImage) {
+        heap_caps_free(m->albumArtImage);
+        m->albumArtImage = nullptr;
+    }
+
+    m->albumArtValid = false;
+    m->header_found  = false;
+    m->track         = 0;
+    m->tag_bytes     = 0;
+
+    m->ver_major = 0;
+    m->ver_minor = 0;
+
+    m->title[0]  = 0;
+    m->artist[0] = 0;
+    m->album[0]  = 0;
+    m->genre[0]  = 0;
+    m->year[0]   = 0;
 }
 
 void id3v2_reset_collector(ID3v2Collector* c) {
-  if (!c) return;
-  if (c->buf_psram) { heap_caps_free(c->buf_psram); c->buf_psram = nullptr; }
-  c->need = c->have = 0;
-  c->pkts = 0;
-  c->collecting = false;
-  c->checked_head = false;
+    if (!c) return;
+    if (c->buf_psram) {
+        heap_caps_free(c->buf_psram);
+        c->buf_psram = nullptr;
+    }
+    c->need = c->have = c->pkts = 0;
+    c->collecting = false;
+    c->checked_head = false;
 }
 
 void id3v2_free_collector(ID3v2Collector* c) {
-  if (!c) return;
-  if (c->buf_psram) { heap_caps_free(c->buf_psram); c->buf_psram = nullptr; }
+    if (c && c->buf_psram) {
+        heap_caps_free(c->buf_psram);
+        c->buf_psram = nullptr;
+    }
 }
 
-// naive text copy: ISO-8859-1 / UTF-8 → copy bytes; UTF-16 → keep LSB
+// ============================================================
+// Text helper
+// ============================================================
+
 static size_t id3_copy_text(char* out, size_t outcap,
-                            const uint8_t* in, size_t len, uint8_t enc) {
-  if (!out || outcap == 0) return 0;
-  size_t w = 0;
-  if (enc == 0 || enc == 3) {
-    for (size_t i=0; i<len && w+1<outcap; ++i) {
-      if (in[i] == 0) break;
-      out[w++] = (char)in[i];
+                            const uint8_t* in,
+                            size_t len,
+                            uint8_t enc) {
+
+    if (!out || outcap == 0) return 0;
+    size_t w = 0;
+
+    if (enc == 0 || enc == 3) {
+        for (size_t i = 0; i < len && w + 1 < outcap; i++) {
+            if (in[i] == 0) break;
+            out[w++] = in[i];
+        }
+    } else {
+        size_t off = (len >= 2) ? 2 : 0;
+        for (size_t i = off; i + 1 < len && w + 1 < outcap; i += 2) {
+            char c = in[i+1] ? '?' : in[i];
+            if (!c) break;
+            out[w++] = c;
+        }
     }
-  } else {
-    size_t off = 0;
-    if (len >= 2 && ((in[0]==0xFF && in[1]==0xFE) || (in[0]==0xFE && in[1]==0xFF))) off = 2;
-    for (size_t i=off; i+1<len && w+1<outcap; i+=2) {
-      char c = (in[i+1]==0) ? (char)in[i] : '?';
-      if (c == 0) break;
-      out[w++] = c;
-    }
-  }
-  out[w] = 0;
-  return w;
+
+    out[w] = 0;
+    return w;
 }
+
+// ============================================================
+// Frame parsing (SAFE)
+// ============================================================
 
 static void id3_parse_frames(const uint8_t* tag, size_t len, ID3v2Meta* m) {
-  if (!tag || len < 10 || memcmp(tag, "ID3", 3) != 0) return;
-  m->ver_major = tag[3];
-  m->ver_minor = tag[4];
-  uint8_t flags = tag[5];
-  uint32_t body = synchsafe_to_u32(&tag[6]); // OK for 2.3/2.4
-  size_t pos = 10;
 
-  if (flags & 0x40) {
-    if (len < pos + 4) return;
-    uint32_t ext = synchsafe_to_u32(&tag[pos]);
-    pos += 4 + ext;
-    if (pos > len) return;
-  }
+    if (!tag || len < 10 || memcmp(tag, "ID3", 3))
+        return;
 
-  const size_t stop = (10 + body <= len) ? (10 + body) : len;
-  bool any_found = false;
+    id3v2_reset_meta(m);
 
-  Serial.printf("[ID3] v2.%d.%d tag body=%lu bytes\n",
-                m->ver_major, m->ver_minor, (unsigned long)body);
+    m->ver_major = tag[3];
+    m->ver_minor = tag[4];
+    uint8_t flags = tag[5];
+    uint32_t body = synchsafe_to_u32(&tag[6]);
 
-  while (pos + 10 <= stop) {
-    const uint8_t* f = tag + pos;
-    if (f[0]==0 || f[1]==0 || f[2]==0 || f[3]==0) break; // padding
-    char id[5]; memcpy(id, f, 4); id[4]=0;
+    size_t pos = 10;
+    size_t stop = (10 + body < len) ? 10 + body : len;
 
-    uint32_t fsz;
-    if (m->ver_major >= 4) fsz = synchsafe_to_u32(&f[4]);
-    else                   fsz = ((uint32_t)f[4]<<24)|((uint32_t)f[5]<<16)|((uint32_t)f[6]<<8)|f[7];
-    if (fsz == 0 || pos + 10 + fsz > len) break;
-
-    const uint8_t* fp = f + 10;
-    uint8_t enc = (fsz>0) ? fp[0] : 0;
-    const uint8_t* txt = (fsz>0) ? (fp+1) : fp;
-    size_t txtlen = (fsz>0) ? (fsz-1) : 0;
-
-    // Temporary text buffer for debug
-    char tmp[128];
-    tmp[0] = 0;
-
-    if      (!strcmp(id,"TIT2")) id3_copy_text(m->title,  sizeof(m->title),  txt, txtlen, enc);
-    else if (!strcmp(id,"TPE1")) id3_copy_text(m->artist, sizeof(m->artist), txt, txtlen, enc);
-    else if (!strcmp(id,"TALB")) id3_copy_text(m->album,  sizeof(m->album),  txt, txtlen, enc);
-    else if (!strcmp(id,"TRCK")) {
-      id3_copy_text(tmp, sizeof(tmp), txt, txtlen, enc);
-      m->track = atoi(tmp);
+    if (flags & 0x40) { // extended header
+        if (pos + 4 > len) return;
+        uint32_t ext = synchsafe_to_u32(&tag[pos]);
+        pos += 4 + ext;
     }
-    else if (!strcmp(id,"TCON")) id3_copy_text(m->genre,  sizeof(m->genre),  txt, txtlen, enc);
-    else if (!strcmp(id,"TDRC") || !strcmp(id,"TYER"))
-                                 id3_copy_text(m->year,   sizeof(m->year),   txt, txtlen, enc);
 
-    if      (!strcmp(id,"TIT2")) Serial.printf("[ID3] Title : %s\n", m->title);
-    else if (!strcmp(id,"TPE1")) Serial.printf("[ID3] Artist: %s\n", m->artist);
-    else if (!strcmp(id,"TALB")) Serial.printf("[ID3] Album : %s\n", m->album);
-    else if (!strcmp(id,"TRCK")) Serial.printf("[ID3] Track : %d\n", m->track);
-    else if (!strcmp(id,"TCON")) Serial.printf("[ID3] Genre : %s\n", m->genre);
-    else if (!strcmp(id,"TDRC") || !strcmp(id,"TYER"))
-                                 Serial.printf("[ID3] Year  : %s\n", m->year);
+    while (pos + 10 <= stop) {
 
-    any_found = true;
-    pos += 10 + fsz;
-  }
+        const uint8_t* f = tag + pos;
+        if (!f[0]) break;
 
-  if (any_found) {
+        char id[5];
+        memcpy(id, f, 4);
+        id[4] = 0;
+
+        uint32_t fsz = (m->ver_major >= 4)
+            ? synchsafe_to_u32(&f[4])
+            : ((uint32_t)f[4] << 24) |
+              ((uint32_t)f[5] << 16) |
+              ((uint32_t)f[6] << 8)  |
+               f[7];
+
+        if (fsz == 0 || pos + 10 + fsz > stop)
+            break;
+
+        const uint8_t* fp = f + 10;
+        uint8_t enc = fp[0];
+        const uint8_t* txt = fp + 1;
+        size_t txtlen = fsz - 1;
+
+        char tmp[32];
+
+        if      (!strcmp(id,"TIT2")) id3_copy_text(m->title,  sizeof(m->title),  txt, txtlen, enc);
+        else if (!strcmp(id,"TPE1")) id3_copy_text(m->artist, sizeof(m->artist), txt, txtlen, enc);
+        else if (!strcmp(id,"TALB")) id3_copy_text(m->album,  sizeof(m->album),  txt, txtlen, enc);
+        else if (!strcmp(id,"TRCK")) {
+            id3_copy_text(tmp, sizeof(tmp), txt, txtlen, enc);
+            m->track = atoi(tmp);
+        }
+        else if (!strcmp(id,"TDRC") || !strcmp(id,"TYER"))
+            id3_copy_text(m->year, sizeof(m->year), txt, txtlen, enc);
+        else if (!strcmp(id,"APIC"))
+            parseAPIC(fp, fsz, *m);
+
+        pos += 10 + fsz;
+    }
+
     m->header_found = true;
-
-    Serial.printf("[ID3] Parsed OK — v2.%d tag\n", m->ver_major);
-
-  }
+    Serial.printf("[ID3] Parsed v2.%d OK\n", m->ver_major);
 }
 
+// ============================================================
+// Collector API
+// ============================================================
+
 void id3v2_try_begin(const uint8_t* buf, size_t len,
-                     uint64_t absolute_stream_pos,
+                     uint64_t abs_pos,
                      size_t max_packet_bytes,
-                     ID3v2Collector* c)
-{
-    if (!c || c->collecting || c->checked_head)
+                     ID3v2Collector* c) {
+
+    if (!c || c->checked_head || abs_pos != 0 || len < 10)
         return;
 
-    // Only attempt once, at start of stream
     c->checked_head = true;
-
-    if (absolute_stream_pos != 0)
-        return;
-
-    if (!buf || len < 10)
-        return;
 
     if (memcmp(buf, "ID3", 3) != 0)
         return;
 
-    uint8_t ver_major = buf[3];
-    uint8_t flags     = buf[5];
-    uint32_t body     = synchsafe_to_u32(&buf[6]);
-
-    // ID3 header (10) + tag body
+    uint32_t body = synchsafe_to_u32(&buf[6]);
     uint32_t total = 10 + body;
 
-    // Footer for v2.4 tags
-    if (ver_major >= 4 && (flags & 0x10))
-        total += 10;
-
-    // HARD CAP: max 3 packets
-    uint32_t max_total = 3 * max_packet_bytes;
-    if (total > max_total)
-        total = max_total;
+    uint32_t max_total = 64 * max_packet_bytes;
+    if (total > max_total) {
+        Serial.println("[ID3] ❌ Tag too large, skipped");
+        return;
+    }
 
     c->need = total;
     c->have = 0;
     c->pkts = 0;
     c->collecting = true;
 
-    if (!c->buf_psram) {
-        c->buf_psram = (uint8_t*)heap_caps_malloc(
-            c->need,
-            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT
-        );
-        if (!c->buf_psram) {
-            c->collecting = false;
-            return;
-        }
-    }
+    c->buf_psram = (uint8_t*)heap_caps_malloc(
+        total,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT
+    );
 
-    Serial.printf("[ID3] Collecting v2.%d tag (%u bytes max)\n",
-                  ver_major, (unsigned)c->need);
+    if (!c->buf_psram)
+        c->collecting = false;
 }
 
 size_t id3v2_consume(const uint8_t* buf, size_t len,
                      ID3v2Collector* c,
-                     ID3v2Meta* m)
-{
-    if (!c || !c->collecting || !c->buf_psram || !buf || len == 0)
+                     ID3v2Meta* m) {
+
+    if (!c || !c->collecting || !buf || !c->buf_psram)
         return 0;
 
-    size_t take = len;
-    if (take > (c->need - c->have))
-        take = (c->need - c->have);
-
+    size_t take = min(len, c->need - c->have);
     memcpy(c->buf_psram + c->have, buf, take);
     c->have += take;
-    c->pkts++;
 
-    // Done when:
-    //  - full tag collected
-    //  - OR safety cap reached
-    bool done = (c->have >= c->need) || (c->pkts >= 3);
+    if (c->have < c->need)
+        return take;
 
-    if (done) {
-        if (m) {
-            m->tag_bytes = c->have;
-
-            // IMPORTANT: clear meta before parsing
-            id3v2_reset_meta(m);
-
-            id3_parse_frames(c->buf_psram, c->have, m);
-        }
-
-        id3v2_free_collector(c);
-        c->collecting = false;
-
-        Serial.printf("[ID3] Collection done (%u bytes)\n",
-                      (unsigned)c->have);
+    if (m) {
+        m->tag_bytes = c->have;
+        id3_parse_frames(c->buf_psram, c->have, m);
     }
+
+    id3v2_free_collector(c);
+    c->collecting = false;
 
     return take;
-}
-
-// Artwork
-static String url_encode(const char* s)
-{
-    String out;
-    char buf[4];
-
-    while (*s) {
-        char c = *s++;
-        if (isalnum(c) || c=='-' || c=='_' || c=='.')
-            out += c;
-        else if (c == ' ')
-            out += '+';
-        else {
-            snprintf(buf, sizeof(buf), "%%%02X", (uint8_t)c);
-            out += buf;
-        }
-    }
-    return out;
-}
-
-#include <HTTPClient.h>
-#include <esp_heap_caps.h>
-
-static bool extract_art_url(const char* json,
-                            char* out,
-                            size_t out_sz)
-{
-    const char* k = "\"artworkUrl100\":\"";
-    const char* p = strstr(json, k);
-    if (!p) return false;
-
-    p += strlen(k);
-    const char* e = strchr(p, '"');
-    if (!e) return false;
-
-    size_t n = e - p;
-    if (n + 1 > out_sz) return false;
-
-    memcpy(out, p, n);
-    out[n] = 0;
-    return true;
-}
-
-// Album Artwork
-bool id3_fetch_album_art_jpeg(
-    const char* artist,
-    const char* album,
-    uint8_t**   out_jpeg,
-    size_t*    out_len)
-{
-    if (!artist || !album || !out_jpeg || !out_len)
-        return false;
-
-    *out_jpeg = nullptr;
-    *out_len  = 0;
-
-    String term = String(artist) + " " + album;
-    term.replace(" ", "+");
-
-    String url =
-        "https://itunes.apple.com/search?term=" +
-        term +
-        "&entity=album&limit=1";
-
-    HTTPClient http;
-    http.setReuse(false);
-
-    if (!http.begin(url))
-        return false;
-
-    int code = http.GET();
-    if (code != HTTP_CODE_OK) {
-        http.end();
-        return false;
-    }
-
-    int json_len = http.getSize();
-    if (json_len <= 0 || json_len > 8192) {
-        http.end();
-        return false;
-    }
-
-    char* json = (char*)heap_caps_malloc(
-        json_len + 1,
-        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-    if (!json) {
-        http.end();
-        return false;
-    }
-
-    WiFiClient* s = http.getStreamPtr();
-    size_t rd = s->readBytes(json, json_len);
-    json[rd] = 0;
-    http.end();
-
-    char art_url[256];
-    if (!extract_art_url(json, art_url, sizeof(art_url))) {
-        heap_caps_free(json);
-        return false;
-    }
-
-    heap_caps_free(json);
-
-    // upgrade to larger size
-    String img_url = art_url;
-    img_url.replace("100x100", "300x300");
-
-    HTTPClient img;
-    img.setReuse(false);
-
-    if (!img.begin(img_url))
-        return false;
-
-    code = img.GET();
-    if (code != HTTP_CODE_OK) {
-        img.end();
-        return false;
-    }
-
-    int len = img.getSize();
-    if (len <= 0 || len > 120 * 1024) {
-        img.end();
-        return false;
-    }
-
-    uint8_t* buf = (uint8_t*)heap_caps_malloc(
-        len,
-        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-    if (!buf) {
-        img.end();
-        return false;
-    }
-
-    rd = img.getStreamPtr()->readBytes(buf, len);
-    img.end();
-
-    if (rd != (size_t)len) {
-        heap_caps_free(buf);
-        return false;
-    }
-
-    *out_jpeg = buf;
-    *out_len  = len;
-
-    Serial.printf("[ART] ✅ Apple artwork %u bytes\n", (unsigned)len);
-    return true;
 }

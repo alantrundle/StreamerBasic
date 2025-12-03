@@ -120,9 +120,9 @@ void AudioPlayer_Next() {
     track++;
 
   HttpStreamEngine::stop();
+  delay(100);
   startTrack();
 }
-
 
 void AudioPlayer_Prev() {
   autoAdvance = false;
@@ -132,6 +132,7 @@ void AudioPlayer_Prev() {
     track--;
 
   HttpStreamEngine::stop();
+  delay(100);
   startTrack();
 }
 

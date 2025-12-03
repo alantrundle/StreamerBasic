@@ -50,3 +50,8 @@ constexpr int I2S_TASK_PRIORITY     = 2;
 
 
 constexpr uint32_t UI_UPDATE_PERIOD_MS = 25;
+
+// Album Art - IDv3
+#define TJPGD_WORKSPACE_SIZE 3100
+#define THUMB_W 120 // output size
+#define THUMB_H 120 // output size

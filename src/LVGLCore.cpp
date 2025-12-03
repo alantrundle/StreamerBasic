@@ -116,54 +116,53 @@ void lvgl_init() {
 // -------------------------------------------------
 static void ui_update_timer_cb(lv_timer_t *t) {
 
-  ID3v2Meta meta;
-  MP3StatusInfo info;
-  A2DPConnectedDetails btinfo;
-
-  // Buffer stats
-  ui_update_stats_bars(
-    HttpStreamEngine::net_fill_percent(),
-    AudioCore::pcm_buffer_percent()
-  );
+  // Objects
+  uint32_t cur = HttpStreamEngine::getPlaySession();
 
   // Output section
   static char a2dpName[32];
 
-  strlcpy(a2dpName, "disconnected", sizeof(a2dpName));
+  ID3v2Meta meta;
+  MP3StatusInfo info;
+  A2DPConnectedDetails btinfo;
 
-  if (a2dp.connected_details(btinfo)) {
-    const char* name = (btinfo.name && btinfo.name[0]) ? btinfo.name : "Unknown";
-    snprintf(a2dpName, sizeof(a2dpName), "%s (%s)", name, btinfo.auto_reconnect ? "Auto" : "New");
-  } 
+  // place calls that require constant updates here
 
+  // Buffer stats - updates every n ticks
+  ui_update_stats_bars(HttpStreamEngine::net_fill_percent(), AudioCore::pcm_buffer_percent());
+
+  // Outputs = Updates ever n ticks
   ui_update_stats_outputs(AudioCore::is_i2s_output_enabled(), a2dp.isConnected(), a2dpName);
 
-
-  // ID3 metadata
-  if (HttpStreamEngine::getID3(meta) && meta.header_found) {
-    ui_update_player_id3(
-      true, meta.artist, meta.title,
-      meta.album, (int)meta.track,
-      nullptr, 0, 0
-    );
-  } else {
-    ui_update_player_id3(true, "-", "-", "-", 0, nullptr, 0, 0);
-  }
-
   // WiFi
-  ui_update_stats_wifi(
-    WiFi.status(),
-    WiFi.SSID().c_str(),
-    WiFi.localIP().toString().c_str()
-  );
+  ui_update_stats_wifi(WiFi.status(), WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
 
-  // Decoder info
-  if (AudioCore::getMP3Info(info)) {
-    ui_update_stats_decoder(
-      info.codec, info.samplerate,
-      info.channels, info.kbps
-    );
-  }
+    // widgets here only get updated when session/track changes when ID3 tag done
+
+    // runs once per track change
+    if (cur != last_session && HttpStreamEngine::isID3Done()) {
+
+      last_session = cur;
+
+      strlcpy(a2dpName, "disconnected", sizeof(a2dpName));
+
+      if (a2dp.connected_details(btinfo)) {
+        const char* name = (btinfo.name && btinfo.name[0]) ? btinfo.name : "Unknown";
+        snprintf(a2dpName, sizeof(a2dpName), "%s (%s)", name, btinfo.auto_reconnect ? "Auto" : "New");
+      } 
+
+      // ID3 metadata
+      if (HttpStreamEngine::getID3(meta) && meta.header_found) {
+        ui_update_player_id3(true, meta.artist, meta.title, meta.album, (int)meta.track, meta.albumArtValid? meta.albumArtImage : nullptr , 120, 120);
+      } else {
+        ui_update_player_id3(true, "-", "-", "-", 0, nullptr, 0, 0);
+      }
+
+      // Decoder info
+      if (AudioCore::getMP3Info(info)) {
+        ui_update_stats_decoder(info.codec, info.samplerate, info.channels, info.kbps);
+      }
+    }
 }
 
 // -------------------------------------------------

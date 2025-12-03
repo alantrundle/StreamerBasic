@@ -34,6 +34,10 @@ public:
   static bool isPlaying();
   static bool isAlive();
 
+  static uint32_t getPlaySession();
+  static bool isID3Done();
+
+
   // ================= NET ring =================
   static EXT_RAM_ATTR uint8_t* net_pool;
   static EXT_RAM_ATTR uint8_t* netBuffers[NUM_BUFFERS];
@@ -48,9 +52,6 @@ public:
 
   static volatile int netWrite;
   static volatile int netRead;
-
-  
-  
 
   // ================= Stream state =================
   static volatile uint32_t g_play_session;
@@ -75,4 +76,8 @@ private:
   // Stats / debug
   static volatile uint32_t g_lastNetWriteMs;
   static volatile uint32_t g_httpBytesTick;
+
+  // id3
+  static volatile bool g_id3_done;
+
 };

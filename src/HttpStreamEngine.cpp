@@ -18,6 +18,7 @@ volatile int HttpStreamEngine::netWrite = 0;
 volatile int HttpStreamEngine::netRead  = 0;
 
 volatile uint32_t HttpStreamEngine::g_play_session = 0;
+volatile bool HttpStreamEngine::g_id3_done = false;
 volatile bool     HttpStreamEngine::stream_running = false;
 volatile bool     HttpStreamEngine::g_force_next   = false;
 
@@ -29,6 +30,7 @@ volatile bool HttpStreamEngine::g_url_open  = false;
 volatile bool HttpStreamEngine::g_isPlaying = false;
 
 volatile bool HttpStreamEngine::stream_eof = false;
+
 
 ID3v2Meta HttpStreamEngine::id3m{};
 
@@ -108,7 +110,13 @@ bool HttpStreamEngine::wifi_check_and_recover()
     return false;
 }
 
+uint32_t HttpStreamEngine::getPlaySession() {
+  return g_play_session;
+}
 
+bool HttpStreamEngine::isID3Done() {
+  return g_id3_done;
+}
 
 
 // =======================================================
@@ -156,6 +164,7 @@ void HttpStreamEngine::open(const char* url) {
   g_url_open = true;
 
   g_play_session++;
+  g_id3_done = false;
   stream_running = false;
 
   net_ring_clear();
@@ -323,6 +332,8 @@ void HttpStreamEngine::httpFillTask(void*)
 
         if (!id3c.collecting && !id3_done) {
           id3_done = true;
+          g_id3_done = true;
+      
           Serial.println("[HTTP] ✅ ID3 phase complete");
         }
 
