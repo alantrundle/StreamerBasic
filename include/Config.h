@@ -29,16 +29,16 @@ constexpr int      STALL_MAX_RETRIES      = 10;
 #define I2S_WS    12
 #define I2S_DATA  13
 
-#define I2S_DMA_BUF_COUNT 6
+#define I2S_DMA_BUF_COUNT 8
 #define I2S_DMA_BUF_LEN 256
 
 // ------------------------------
 // Decode cadence
 // ------------------------------
 constexpr int HI_PCT    = 90;
-constexpr int LO_PCT    = 50;
+constexpr int LO_PCT    = 70;
 constexpr int PRIME_PCT = 30;
-constexpr int MIN_A2DP_PCT = 30;   // wait until PCN > 10%
+constexpr int MIN_A2DP_PCT = 10;   // wait until PCN > 10%
 
  constexpr uint32_t PCM_STALL_TIMEOUT_MS = 4000; // detect end of track
 

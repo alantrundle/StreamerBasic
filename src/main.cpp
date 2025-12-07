@@ -38,6 +38,8 @@ static void connectWiFi() {
     }
   }
 
+
+
   Serial.printf("\n[WIFI] ✅ Connected, IP=%s\n",
                 WiFi.localIP().toString().c_str());
 }
@@ -96,7 +98,7 @@ void health_log() {
   static uint32_t last = 0;
   uint32_t now = millis();
 
-  if (now - last < 1UL * 60UL * 1000UL)
+  if (now - last < 5UL * 60UL * 1000UL)
     return;
   last = now;
 
@@ -151,8 +153,6 @@ void setup() {
 
   Serial.println("\n=== StreamerBasic ===");
 
-  connectWiFi();
-
   lvgl_init();
 
   // 1. Wi-Fi
@@ -174,6 +174,8 @@ void setup() {
   a2dp.set_connectionstate_callback(onA2DPConnectionState);
   a2dp.set_scan_callback(btScanCallback);
   a2dp.start();
+
+  connectWiFi();
 
   //esp_bt_sleep_disable();
 
