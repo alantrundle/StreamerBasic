@@ -46,7 +46,7 @@ void lvgl_init() {
   // --- Panel ---
   display.init();
   display.setRotation(PANEL_ROTATION);
-  display.setBrightness(200);
+  display.setBrightness(100);
   display.fillScreen(0x0000);
 
   // --- LVGL ---
@@ -57,7 +57,7 @@ void lvgl_init() {
   lv_display_set_flush_cb(lv_disp, my_flush);
 
   // ✅ Larger buffers = fewer flushes
-  const int lines = 4;  // tuned: reduces stripe effect heavily
+  const int lines = 8;  // tuned: reduces stripe effect heavily
   const size_t bytes = (size_t)TFT_HOR_RES * lines * sizeof(lv_color_t);
 
   //lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);

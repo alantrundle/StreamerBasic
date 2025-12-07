@@ -422,193 +422,193 @@ static void a2dp_kick_cb(void* arg)
   if (r != ESP_OK) {
     Serial.printf("[A2DP] ❌ CHECK_SRC_RDY failed: %s\n",
                   esp_err_to_name(r));
-  } else {
-    Serial.println("[A2DP] ✅ CHECK_SRC_RDY sent (deferred)");
-  }
+  } 
 }
 
 void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
                        esp_a2d_cb_param_t* param)
 {
-  if (!self_)
-    return;
+    if (!self_)
+        return;
 
-  switch (event) {
+    switch (event) {
 
-  // ==========================================================
-  // CONNECTION STATE
-  // ==========================================================
-  case ESP_A2D_CONNECTION_STATE_EVT: {
+    // ==========================================================
+    // CONNECTION STATE
+    // ==========================================================
+    case ESP_A2D_CONNECTION_STATE_EVT: {
 
-    esp_a2d_connection_state_t s = param->conn_stat.state;
-    Serial.printf("[A2DP] 🔗 Connection state = %d\n", s);
+        esp_a2d_connection_state_t s = param->conn_stat.state;
 
-    // ===================== CONNECTED =====================
-    if (s == ESP_A2D_CONNECTION_STATE_CONNECTED) {
+        // =================== CONNECTED ===================
+        if (s == ESP_A2D_CONNECTION_STATE_CONNECTED) {
 
-      esp_bt_sleep_disable();
+            esp_bt_sleep_disable();
 
-      self_->connected_ = true;
-      self_->block_manual_scan_ = false;
+            self_->connected_ = true;
+            self_->block_manual_scan_ = false;
 
-      // Audio not ready until START ACK
-      AudioCore::set_a2dp_audio_ready(false);
+            // ✅ Pause decoder until BT is fully ready
+            AudioCore::decoder_paused = true;
+            AudioCore::set_a2dp_audio_ready(false);
 
-      // Clear + populate connected details
-      memset(&self_->connected_details_, 0,
-             sizeof(self_->connected_details_));
+            memset(&self_->connected_details_, 0,
+                   sizeof(self_->connected_details_));
 
-      self_->connected_details_.connected = true;
+            self_->connected_details_.connected = true;
 
-      // ✅ AUTHORITATIVE: connection source
-      self_->connected_details_.auto_reconnect =
-          self_->connecting_via_autoreconnect_;
+            // Store MAC
+            memcpy(self_->connected_details_.mac,
+                   param->conn_stat.remote_bda, 6);
 
-      // One-shot flag — clear immediately
-      self_->connecting_via_autoreconnect_ = false;
+            // ---------- Resolve name ----------
+            for (int i = 0; i < AR_MAX; i++) {
+                if (ar_table[i].mac[0] &&
+                    memcmp(ar_table[i].mac,
+                           param->conn_stat.remote_bda, 6) == 0) {
 
-      // Store MAC
-      memcpy(self_->connected_details_.mac,
-             param->conn_stat.remote_bda, 6);
+                    strncpy(self_->connected_details_.name,
+                            ar_table[i].name,
+                            sizeof(self_->connected_details_.name) - 1);
+                    break;
+                }
+            }
 
-      // -------- Resolve name (priority order) --------
-      // 1) Auto-reconnect table
-      for (int i = 0; i < AR_MAX; i++) {
-        if (ar_table[i].mac[0] &&
-            memcmp(ar_table[i].mac,
-                   param->conn_stat.remote_bda, 6) == 0) {
+            if (!self_->connected_details_.name[0]) {
+                for (int i = 0; i < scan_count_; i++) {
+                    if (memcmp(scan_bda_[i],
+                               param->conn_stat.remote_bda, 6) == 0) {
 
-          strncpy(self_->connected_details_.name,
-                  ar_table[i].name,
-                  sizeof(self_->connected_details_.name) - 1);
-          break;
+                        strncpy(self_->connected_details_.name,
+                                scan_name_[i][0]
+                                  ? scan_name_[i]
+                                  : "Unknown",
+                                sizeof(self_->connected_details_.name) - 1);
+                        break;
+                    }
+                }
+            }
+
+            if (!self_->connected_details_.name[0]) {
+                strncpy(self_->connected_details_.name,
+                        "Unknown",
+                        sizeof(self_->connected_details_.name) - 1);
+            }
+
+            // ---------- AUTO / MANUAL ----------
+            bool in_nv = false;
+            for (int i = 0; i < AR_MAX; i++) {
+                if (ar_table[i].mac[0] &&
+                    memcmp(ar_table[i].mac,
+                           param->conn_stat.remote_bda, 6) == 0) {
+                    in_nv = true;
+                    break;
+                }
+            }
+            self_->connected_details_.auto_reconnect = in_nv;
+
+            self_->connecting_via_autoreconnect_ = false;
+
+            Serial.printf(
+                "[A2DP] ✅ Connected: %s (%02X:%02X:%02X:%02X:%02X:%02X) [%s]\n",
+                self_->connected_details_.name,
+                self_->connected_details_.mac[0],
+                self_->connected_details_.mac[1],
+                self_->connected_details_.mac[2],
+                self_->connected_details_.mac[3],
+                self_->connected_details_.mac[4],
+                self_->connected_details_.mac[5],
+                self_->connected_details_.auto_reconnect ? "AUTO" : "MANUAL"
+            );
+
+            // ---- Deferred CHECK_SRC_RDY kick (silent) ----
+            if (!s_a2dp_kick_timer) {
+                esp_timer_create_args_t args = {};
+                args.callback = &a2dp_kick_cb;
+                args.name     = "a2dp_kick";
+                esp_timer_create(&args, &s_a2dp_kick_timer);
+            }
+            esp_timer_start_once(s_a2dp_kick_timer, 100000); // 100 ms
         }
-      }
 
-      // 2) Last scan results
-      if (!self_->connected_details_.name[0]) {
-        for (int i = 0; i < scan_count_; i++) {
-          if (memcmp(scan_bda_[i],
-                     param->conn_stat.remote_bda, 6) == 0) {
+        // ================= DISCONNECTED =================
+        else if (s == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
 
-            strncpy(self_->connected_details_.name,
-                    scan_name_[i][0]
-                      ? scan_name_[i]
-                      : "Unknown",
-                    sizeof(self_->connected_details_.name) - 1);
-            break;
-          }
+            esp_bt_sleep_enable();
+
+            self_->connected_ = false;
+            self_->connecting_via_autoreconnect_ = false;
+
+            AudioCore::set_a2dp_audio_ready(false);
+
+            // ✅ Decoder allowed to run again
+            AudioCore::decoder_paused = false;
+
+            memset(&self_->connected_details_, 0,
+                   sizeof(self_->connected_details_));
+
+            Serial.println("[A2DP] ❌ Disconnected");
         }
-      }
-
-      // 3) Fallback
-      if (!self_->connected_details_.name[0]) {
-        strncpy(self_->connected_details_.name,
-                "Unknown",
-                sizeof(self_->connected_details_.name) - 1);
-      }
-
-      Serial.printf(
-        "[A2DP] ✅ Connected: %s (%02X:%02X:%02X:%02X:%02X:%02X) [%s]\n",
-        self_->connected_details_.name,
-        self_->connected_details_.mac[0],
-        self_->connected_details_.mac[1],
-        self_->connected_details_.mac[2],
-        self_->connected_details_.mac[3],
-        self_->connected_details_.mac[4],
-        self_->connected_details_.mac[5],
-        self_->connected_details_.auto_reconnect ? "AUTO" : "MANUAL"
-      );
-
-      // ---- Defer CHECK_SRC_RDY (required) ----
-      if (!s_a2dp_kick_timer) {
-        esp_timer_create_args_t args = {};
-        args.callback = &a2dp_kick_cb;
-        args.name     = "a2dp_kick";
-        esp_timer_create(&args, &s_a2dp_kick_timer);
-      }
-
-      esp_timer_start_once(s_a2dp_kick_timer, 100000); // 100 ms
+        break;
     }
 
-    // ===================== DISCONNECTED =====================
-    else if (s == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
+    // ==========================================================
+    // MEDIA CONTROL ACKS (AUTHORITATIVE)
+    // ==========================================================
+    case ESP_A2D_MEDIA_CTRL_ACK_EVT: {
 
-      esp_bt_sleep_enable();
+        auto cmd = param->media_ctrl_stat.cmd;
+        auto st  = param->media_ctrl_stat.status;
 
-      self_->connected_ = false;
-      self_->connecting_via_autoreconnect_ = false;
+        // CHECK_SRC_RDY → START
+        if (cmd == ESP_A2D_MEDIA_CTRL_CHECK_SRC_RDY &&
+            st  == ESP_A2D_MEDIA_CTRL_ACK_SUCCESS) {
 
-      AudioCore::set_a2dp_audio_ready(false);
+            esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_START);
+        }
 
-      memset(&self_->connected_details_, 0,
-             sizeof(self_->connected_details_));
+        // ✅ START ACK → audio ready
+        if (cmd == ESP_A2D_MEDIA_CTRL_START &&
+            st  == ESP_A2D_MEDIA_CTRL_ACK_SUCCESS) {
 
-      Serial.println("[A2DP] ❌ Device disconnected");
+            Serial.println("[A2DP] ✅ Audio ready");
+            AudioCore::set_a2dp_audio_ready(true);
+
+            // ---- 1s settle before decode resumes ----
+            static esp_timer_handle_t resume_timer = nullptr;
+
+            if (!resume_timer) {
+                esp_timer_create_args_t args = {};
+                args.callback = [](void*) {
+                    if (AudioCore::is_a2dp_audio_ready())
+                        AudioCore::decoder_paused = false;
+                };
+                args.name = "a2dp_resume";
+                esp_timer_create(&args, &resume_timer);
+            }
+            esp_timer_start_once(resume_timer, 1000000); // 1s
+        }
+
+        // STOP / SUSPEND
+        if (cmd == ESP_A2D_MEDIA_CTRL_STOP ||
+            cmd == ESP_A2D_MEDIA_CTRL_SUSPEND) {
+
+            AudioCore::set_a2dp_audio_ready(false);
+        }
+        break;
     }
 
-    // Notify application
-    if (self_->conn_cb_) {
-      self_->conn_cb_(s, nullptr);
+    // ==========================================================
+    // AUDIO STATE (ignored; app callback only)
+    // ==========================================================
+    case ESP_A2D_AUDIO_STATE_EVT:
+        // intentionally silent
+        break;
+
+    default:
+        break;
     }
-    break;
-  }
-
-  // ==========================================================
-  // MEDIA CONTROL ACKS (AUTHORITATIVE STREAM CONTROL)
-  // ==========================================================
-  case ESP_A2D_MEDIA_CTRL_ACK_EVT: {
-
-    auto cmd = param->media_ctrl_stat.cmd;
-    auto st  = param->media_ctrl_stat.status;
-
-    if (cmd == ESP_A2D_MEDIA_CTRL_CHECK_SRC_RDY &&
-        st  == ESP_A2D_MEDIA_CTRL_ACK_SUCCESS) {
-
-      Serial.println("[A2DP] ▶ Source ready — starting stream");
-
-      esp_err_t r =
-        esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_START);
-
-      if (r != ESP_OK) {
-        Serial.printf("[A2DP] ❌ START failed: %s\n",
-                      esp_err_to_name(r));
-      }
-    }
-
-    if (cmd == ESP_A2D_MEDIA_CTRL_START &&
-        st  == ESP_A2D_MEDIA_CTRL_ACK_SUCCESS) {
-
-      Serial.println("[A2DP] ✅ Media START confirmed");
-      AudioCore::set_a2dp_audio_ready(true);
-    }
-
-    if (cmd == ESP_A2D_MEDIA_CTRL_STOP ||
-        cmd == ESP_A2D_MEDIA_CTRL_SUSPEND) {
-
-      Serial.println("[A2DP] ⏹ Media stopped");
-      AudioCore::set_a2dp_audio_ready(false);
-    }
-
-    break;
-  }
-
-  // ==========================================================
-  // AUDIO STATE (informational only)
-  // ==========================================================
-  case ESP_A2D_AUDIO_STATE_EVT: {
-
-    if (self_->audio_cb_) {
-      self_->audio_cb_(param->audio_stat.state, nullptr);
-    }
-    break;
-  }
-
-  default:
-    break;
-  }
 }
-
 
 // ------------------------------------------------------------
 

@@ -396,7 +396,7 @@ bool AudioCore::init() {
   xTaskCreatePinnedToCore(
       decodeTask,
       "DECODE",
-      4096,
+      3072,
       nullptr,
       DECODER_TASK_PRIORITY,
       nullptr,
@@ -406,7 +406,7 @@ bool AudioCore::init() {
   xTaskCreatePinnedToCore(
       i2sPlaybackTask,
       "I2S",
-      4096,
+      2048,
       nullptr,
       I2S_TASK_PRIORITY,
       &i2STask,
