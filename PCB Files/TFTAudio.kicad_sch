@@ -19287,7 +19287,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Button_Switch_THT:SW_Tactile_SKHH_Angled"
+		(property "Footprint" "Button_Switch_SMD:SW_SPST_EVQP7C"
 			(at 125.73 52.07 0)
 			(effects
 				(font
@@ -19314,7 +19314,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" " C318884"
+		(property "LCSC" "C318884"
 			(at 130.81 52.07 90)
 			(effects
 				(font
