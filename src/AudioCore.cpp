@@ -53,9 +53,9 @@ void AudioCore::set_i2s_output(bool enabled) {
   portEXIT_CRITICAL(&a2dp_mux);
 }
 
-void AudioCore::set_a2dp_output(bool a2dp_output) {
+void AudioCore::set_a2dp_output(bool enabled) {
   portENTER_CRITICAL(&a2dp_mux);
-  a2dp_output = a2dp_output;
+  a2dp_output = enabled;
   portEXIT_CRITICAL(&a2dp_mux);
 }
 
@@ -492,14 +492,37 @@ void AudioCore::decodeTask(void*) {
   const size_t LO_BYTES   = (PCM_BUFFER_BYTES * LO_PCT) / 100;
   const size_t PRIME_SLOTS = (NUM_BUFFERS * PRIME_PCT) / 100;
   const size_t MIN_A2DP_BYTES =
-    (PCM_BUFFER_BYTES * MIN_A2DP_PCT) / 100;   // ✅ NEW
+    (PCM_BUFFER_BYTES * MIN_A2DP_PCT) / 100;
 
   uint32_t  last_session = 0xFFFFFFFF;
   bool      priming      = true;
   bool      drained      = false;
-  bool      a2dp_enabled_this_session = false;   // ✅ NEW
+  bool      a2dp_enabled_this_session = false;
 
   for (;;) {
+
+    // ==================================================
+    // 🔒 EARLY SESSION FENCE (NEW)
+    // ==================================================
+    uint32_t cur_session = HttpStreamEngine::getPlaySession();
+    if (cur_session != last_session) {
+
+      if (active_codec == CODEC_MP3) mp3.end();
+      if (active_codec == CODEC_AAC) aac.end();
+
+      active_codec = CODEC_UNKNOWN;
+      last_session = cur_session;
+
+      priming      = true;
+      drained      = false;
+
+      AudioCore::decoder_auto_paused = false;
+      AudioCore::set_a2dp_output(false);
+      a2dp_enabled_this_session = false;
+
+      vTaskDelay(pdMS_TO_TICKS(1));
+      continue;   // 🚫 do NOT touch NET slots this cycle
+    }
 
     // --------------------------------------------------
     // Stream inactive → DRAIN, NOT ABORT
@@ -521,7 +544,7 @@ void AudioCore::decodeTask(void*) {
         priming        = true;
         AudioCore::decoder_auto_paused = false;
         a2dp_output = false;
-        a2dp_enabled_this_session = false;          // ✅ NEW
+        a2dp_enabled_this_session = false;
         vTaskDelay(pdMS_TO_TICKS(1));
         continue;
       }
@@ -530,7 +553,6 @@ void AudioCore::decodeTask(void*) {
     // --------------------------------------------------
     // NET priming phase
     // --------------------------------------------------
-    // sit here whilst priming net buffer.
     if (priming) {
       if (net_filled_slots() < (int)PRIME_SLOTS) {
         vTaskDelay(1);
@@ -547,7 +569,6 @@ void AudioCore::decodeTask(void*) {
     size_t fill = a2dp_buffer_fill;
     portEXIT_CRITICAL(&a2dp_mux);
 
-    // ✅ A2DP output gate (10% rule)
     if (!a2dp_enabled_this_session) {
       if (fill >= MIN_A2DP_BYTES) {
         a2dp_output = true;
@@ -566,43 +587,40 @@ void AudioCore::decodeTask(void*) {
     else if (AudioCore::decoder_auto_paused && fill <= LO_BYTES)
       AudioCore::decoder_auto_paused = false;
 
-    // decoder paused. sit and wait...
     if (AudioCore::decoder_paused || AudioCore::decoder_auto_paused) {
       vTaskDelay(2);
       continue;
     }
 
     // --------------------------------------------------
-    // Wait for NET slot
+    // 🔒 SAFE NET SLOT CLAIM (NEW)
     // --------------------------------------------------
-    if (!HttpStreamEngine::netBufFilled[HttpStreamEngine::netRead]) {
+    const int slot = HttpStreamEngine::netRead;
+
+    if (!HttpStreamEngine::netBufFilled[slot]) {
       vTaskDelay(1);
       continue;
     }
 
-    const int slot = HttpStreamEngine::netRead;
+    // Validate slot belongs to *this* session
+    uint32_t sess = HttpStreamEngine::netSess[slot];
+    if (sess != cur_session) {
+
+      // ❌ stale slot → discard safely
+      HttpStreamEngine::netBufFilled[slot] = false;
+      HttpStreamEngine::netSize[slot]      = 0;
+      HttpStreamEngine::netOffset[slot]    = 0;
+
+      HttpStreamEngine::netRead =
+        (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
+
+      continue;
+    }
 
     uint8_t* ptr    = HttpStreamEngine::netBuffers[slot];
     uint16_t bytes  = HttpStreamEngine::netSize[slot];
     uint16_t offset = HttpStreamEngine::netOffset[slot];
-    uint32_t sess   = HttpStreamEngine::netSess[slot];
     uint8_t  tag    = HttpStreamEngine::netTag[slot];
-
-    // --------------------------------------------------
-    // New session → hard reset
-    // --------------------------------------------------
-    if (sess != last_session) {
-      if (active_codec == CODEC_MP3) mp3.end();
-      if (active_codec == CODEC_AAC) aac.end();
-      active_codec = CODEC_UNKNOWN;
-      last_session = sess;
-      priming      = true;
-      drained      = false;
-
-      AudioCore::set_a2dp_output(false);          // ✅ NEW
-      a2dp_enabled_this_session = false;          // ✅ NEW
-      continue;
-    }
 
     // --------------------------------------------------
     // Codec selection
@@ -641,8 +659,12 @@ void AudioCore::decodeTask(void*) {
     // --------------------------------------------------
     HttpStreamEngine::netBufFilled[slot] = false;
     HttpStreamEngine::netSize[slot]      = 0;
-    HttpStreamEngine::netRead = (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
+    HttpStreamEngine::netOffset[slot]    = 0;
+
+    HttpStreamEngine::netRead =
+      (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
 
     vTaskDelay(2);
   }
 }
+

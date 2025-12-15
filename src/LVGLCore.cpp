@@ -46,7 +46,7 @@ void lvgl_init() {
   // --- Panel ---
   display.init();
   display.setRotation(PANEL_ROTATION);
-  display.setBrightness(100);
+  display.setBrightness(180);
   display.fillScreen(0x0000);
 
   // --- LVGL ---
