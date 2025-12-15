@@ -604,8 +604,9 @@ void AudioCore::decodeTask(void*) {
       }
     }
     else {
-      if (fill < MIN_A2DP_BYTES) {
+      if (!HttpStreamEngine::stream_running && fill == 0) {
         AudioCore::set_a2dp_output(false);
+        a2dp_enabled_this_session = false;
       }
     }
 

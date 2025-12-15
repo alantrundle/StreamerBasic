@@ -18,7 +18,7 @@ constexpr int      STALL_MAX_RETRIES      = 10;
 // ------------------------------
 // PCM buffering
 // ------------------------------
-#define PCM_BUFFER_SIZE_KB 512
+#define PCM_BUFFER_SIZE_KB 768
 #define PCM_BUFFER_BYTES   (1024 * PCM_BUFFER_SIZE_KB)
 #define A2DP_BUFFER_SIZE PCM_BUFFER_BYTES
 
