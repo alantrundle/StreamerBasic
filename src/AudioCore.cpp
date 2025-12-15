@@ -561,8 +561,8 @@ void AudioCore::decodeTask(void*) {
 
         priming        = true;
         AudioCore::decoder_auto_paused = false;
-        a2dp_output = false;
-        a2dp_enabled_this_session = false;
+        //a2dp_output = false;
+        //a2dp_enabled_this_session = false;
 
         // Longer delay is safe here – no real-time work
         vTaskDelay(pdMS_TO_TICKS(5));

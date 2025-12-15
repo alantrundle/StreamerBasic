@@ -44,7 +44,7 @@ Recommend Kit without PCB
 ESP32 WROVER with 8MB PSRAM with TF Card
 - https://www.aliexpress.com/item/32879370278.html?spm=a2g0o.order_list.order_list_main.151.73d21802kujr90
 
-4" TFT Capacitive Touch
+4" TFT Capacitive Touch - Required for PCB V1.1 (LVGL support)
 - https://www.aliexpress.com/item/1005006698127763.html?spm=a2g0o.order_list.order_list_main.106.73d21802kujr90
 
 PCM5102 DAC (I2S with Stereo RCA and headphone/lineout jack outputs)
