@@ -1,0 +1,56 @@
+### Footprint positions - created on 2025-12-15T11:03:38+0000 ###
+### Printed by KiCad version 9.0.6
+## Unit = mm, Angle = deg.
+## Side : All
+# Ref     Val                          Package                                                 PosX       PosY       Rot  Side
+C1        100nF                        C_0603_1608Metric                                    41.4000   -19.9750   90.0000  top
+C2        100nF                        C_0603_1608Metric                                    31.4100   -32.8100   90.0000  top
+C3        10uF                         C_0603_1608Metric                                    67.0300   -46.9300  -90.0000  top
+C4        10uF                         C_0603_1608Metric                                    75.4400   -48.5300  -90.0000  top
+C5        100nF                        C_0603_1608Metric                                    75.4400   -45.4000   90.0000  top
+C6        10uF                         C_0603_1608Metric                                    41.4000   -23.0500  -90.0000  top
+C7        100nF                        C_0603_1608Metric                                    45.4300   -29.6900    0.0000  top
+C8        10uF                         C_0603_1608Metric                                   112.5000   -35.4500  -90.0000  top
+C9        100nF                        C_0603_1608Metric                                   112.4800   -32.3300   90.0000  top
+C14       10uF                         C_0603_1608Metric                                    19.2100   -34.2300  -90.0000  top
+C15       100nF                        C_0603_1608Metric                                    19.2100   -31.1700   90.0000  top
+C16       2.2nF                        C_0603_1608Metric                                    92.6325   -39.8600   90.0000  top
+C17       2.2nF                        C_0603_1608Metric                                    95.5125   -39.8800  -90.0000  top
+C18       100nF                        C_0603_1608Metric                                    89.1200   -44.7400  180.0000  top
+C19       100nF                        C_0603_1608Metric                                    89.6700   -55.9600  180.0000  top
+C20       10uF                         C_0603_1608Metric                                    92.7200   -55.9600    0.0000  top
+C21       2.2uF                        C_0603_1608Metric                                    85.6000   -48.8300   90.0000  top
+C22       10uF                         C_0603_1608Metric                                    49.2800   -65.6900   90.0000  top
+C23       100nF                        C_0603_1608Metric                                    49.2400   -68.8500   90.0000  top
+C24       2.2uF                        C_0603_1608Metric                                    85.6000   -51.8800   90.0000  top
+C25       100nF                        C_0603_1608Metric                                    98.1425   -46.6100   90.0000  top
+C26       100nF                        C_0603_1608Metric                                    98.1425   -49.7100  -90.0000  top
+D1        Charge                       LED_0805_2012Metric                                  70.0300   -19.9650    0.0000  top
+D2        MBR0520                      D_SOD-123                                            66.5100   -42.5300    0.0000  top
+D3        LED                          LED_0805_2012Metric                                  64.0500   -19.9700    0.0000  top
+J2        Lipo_1S                      JST_ZH_S2B-ZR-SM4A-TF_1x02-1MP_P1.50mm_Horizontal   115.5500   -68.1100  -90.0000  top
+J3        Display                      PinSocket_1x14_P2.54mm_Vertical                      15.0000   -31.9300    0.0000  top
+J5        expansion                    PinSocket_1x12_P2.54mm_Vertical                     116.3600   -33.5900    0.0000  top
+J6        USB_C_Receptacle_USB2.0_14P  USB_C_Receptacle_HRO_TYPE-C-31-M-12                  34.0000   -22.6300  180.0000  top
+Q1        AO3400A                      SOT-23                                               35.4100   -37.3200   90.0000  top
+Q2        AO3400A                      SOT-23                                               35.3900   -32.6600  -90.0000  top
+Q3        AO3401A                      SOT-23                                               66.4700   -37.6800  -90.0000  top
+R1        1k                           R_0603_1608Metric                                    69.1100   -22.9550   90.0000  top
+R2        2.2k                         R_0603_1608Metric                                    72.1800   -35.8600  180.0000  top
+R3        1k                           R_0603_1608Metric                                    64.2300   -46.9800  -90.0000  top
+R4        5k1                          R_0603_1608Metric                                    26.3250   -19.9750   90.0000  top
+R5        5k1                          R_0603_1608Metric                                    26.3250   -23.0250  -90.0000  top
+R6        470R                         R_0603_1608Metric                                    92.6525   -42.9500   90.0000  top
+R7        470R                         R_0603_1608Metric                                    95.5225   -42.9600   90.0000  top
+R8        10K                          R_0603_1608Metric                                    98.9300   -52.1900    0.0000  top
+R9        100K                         R_0603_1608Metric                                    71.3600   -41.6950   90.0000  top
+R10       220R                         R_0603_1608Metric                                    63.1200   -22.9550  -90.0000  top
+R11       10K                          R_0603_1608Metric                                    26.5000   -32.8000   90.0000  top
+SW1       SW_SPST                      SW_Slide_SPDT_Angled_CK_OS102011MA1Q                 58.2500   -20.8500  180.0000  top
+SW2       RESET                        SW_SPST_EVQP7C                                       59.1000   -76.3000    0.0000  top
+U1        ESP32-WROVER-E               ESP32-WROVER-E                                       36.6500   -61.9700  180.0000  top
+U2        CH340C                       SOIC-16_3.9x9.9mm_P1.27mm                            44.0300   -34.5900  -90.0000  top
+U3        MCP73831-2-OT                SOT-23-5                                             76.4000   -34.9200  180.0000  top
+U4        AP2112K-3.3                  SOT-23-5                                             71.1500   -47.1275    0.0000  top
+U5        PCM5102A                     TSSOP-20_4.4x6.5mm_P0.65mm                           91.8600   -50.3400    0.0000  top
+## End
