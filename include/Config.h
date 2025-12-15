@@ -9,7 +9,7 @@ static const char* WIFI_PASS = "cdf45424e4";
 // NET / HTTP buffering
 // ------------------------------
 #define MAX_CHUNK_SIZE 1025
-#define NUM_BUFFERS   256
+#define NUM_BUFFERS   512
 
 // ✅ NEW robust stall handling
 constexpr uint32_t STALL_RETRY_TIMEOUT_MS = 800;
@@ -18,7 +18,7 @@ constexpr int      STALL_MAX_RETRIES      = 10;
 // ------------------------------
 // PCM buffering
 // ------------------------------
-#define PCM_BUFFER_SIZE_KB 768
+#define PCM_BUFFER_SIZE_KB 1024
 #define PCM_BUFFER_BYTES   (1024 * PCM_BUFFER_SIZE_KB)
 #define A2DP_BUFFER_SIZE PCM_BUFFER_BYTES
 
@@ -36,7 +36,7 @@ constexpr int      STALL_MAX_RETRIES      = 10;
 // Decode cadence
 // ------------------------------
 constexpr int HI_PCT    = 90;
-constexpr int LO_PCT    = 70;
+constexpr int LO_PCT    = 80;
 constexpr int PRIME_PCT = 30;
 constexpr int MIN_A2DP_PCT = 10;   // wait until PCN > 10%
 
