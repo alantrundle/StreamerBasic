@@ -499,19 +499,12 @@ void AudioCore::decodeTask(void*) {
   bool      drained      = false;
   bool      a2dp_enabled_this_session = false;
 
+  static UBaseType_t base_prio = uxTaskPriorityGet(NULL);
+
   for (;;) {
 
     // ==================================================
     // 🔒 EARLY SESSION FENCE
-    // --------------------------------------------------
-    // Detects any change in HTTP play session.
-    // This prevents the decoder from ever touching
-    // NET buffers that belong to a previous track.
-    //
-    // Delay here is purely cooperative:
-    // - gives HTTP time to reset sockets
-    // - gives LVGL time to update UI state
-    // - no audio work is happening yet
     // ==================================================
     uint32_t cur_session = HttpStreamEngine::getPlaySession();
     if (cur_session != last_session) {
@@ -529,21 +522,12 @@ void AudioCore::decodeTask(void*) {
       AudioCore::set_a2dp_output(false);
       a2dp_enabled_this_session = false;
 
-      // Increased to reduce CPU spikes during track changes
       vTaskDelay(pdMS_TO_TICKS(3));
-      continue;   // 🚫 do NOT touch NET slots this cycle
+      continue;
     }
 
     // --------------------------------------------------
     // Stream inactive → DRAIN, NOT ABORT
-    // --------------------------------------------------
-    // When HTTP has stopped but PCM may still contain
-    // data, allow decoder to flush final frames cleanly.
-    //
-    // Delay here is safe to increase because:
-    // - no decoding pressure exists
-    // - NET is idle
-    // - helps LVGL + WiFi responsiveness
     // --------------------------------------------------
     if (!HttpStreamEngine::stream_running) {
 
@@ -561,10 +545,7 @@ void AudioCore::decodeTask(void*) {
 
         priming        = true;
         AudioCore::decoder_auto_paused = false;
-        //a2dp_output = false;
-        //a2dp_enabled_this_session = false;
 
-        // Longer delay is safe here – no real-time work
         vTaskDelay(pdMS_TO_TICKS(5));
         continue;
       }
@@ -572,12 +553,6 @@ void AudioCore::decodeTask(void*) {
 
     // --------------------------------------------------
     // NET priming phase
-    // --------------------------------------------------
-    // Wait until HTTP has pre-filled enough NET slots
-    // before decoding starts.
-    //
-    // Slightly increased delay reduces contention with
-    // HTTPFillTask while keeping startup latency low.
     // --------------------------------------------------
     if (priming) {
       if (net_filled_slots() < (int)PRIME_SLOTS) {
@@ -595,7 +570,19 @@ void AudioCore::decodeTask(void*) {
     size_t fill = a2dp_buffer_fill;
     portEXIT_CRITICAL(&a2dp_mux);
 
-    // Enable A2DP only once sufficient PCM exists
+    // --------------------------------------------------
+    // Starvation detection
+    // --------------------------------------------------
+    const bool pcm_starving = (fill <= LO_BYTES);
+    const bool net_starving = (net_filled_slots() <= 1);
+    const bool starving    = pcm_starving || net_starving;
+
+    // Temporary priority boost during starvation
+    vTaskPrioritySet(NULL, starving ? base_prio + 1 : base_prio);
+
+    // --------------------------------------------------
+    // A2DP enable / sticky disable
+    // --------------------------------------------------
     if (!a2dp_enabled_this_session) {
       if (fill >= MIN_A2DP_BYTES) {
         a2dp_output = true;
@@ -604,13 +591,23 @@ void AudioCore::decodeTask(void*) {
       }
     }
     else {
+      static uint32_t zero_since = 0;
+
       if (!HttpStreamEngine::stream_running && fill == 0) {
-        AudioCore::set_a2dp_output(false);
-        a2dp_enabled_this_session = false;
+        if (!zero_since) zero_since = millis();
+        if (millis() - zero_since > 600) {
+          AudioCore::set_a2dp_output(false);
+          a2dp_enabled_this_session = false;
+        }
+      }
+      else {
+        zero_since = 0;
       }
     }
 
+    // --------------------------------------------------
     // Auto-pause decoder when PCM is high
+    // --------------------------------------------------
     if (!AudioCore::decoder_auto_paused && fill >= HI_BYTES)
       AudioCore::decoder_auto_paused = true;
     else if (AudioCore::decoder_auto_paused && fill <= LO_BYTES)
@@ -619,94 +616,95 @@ void AudioCore::decodeTask(void*) {
     // --------------------------------------------------
     // Decoder paused state
     // --------------------------------------------------
-    // This is intentional back-pressure.
-    // Increasing delay here is very safe because
-    // PCM already has plenty of buffered audio.
-    // --------------------------------------------------
     if (AudioCore::decoder_paused || AudioCore::decoder_auto_paused) {
       vTaskDelay(pdMS_TO_TICKS(4));
       continue;
     }
 
     // --------------------------------------------------
-    // 🔒 SAFE NET SLOT CLAIM
+    // 🔒 SAFE NET SLOT CLAIM (burst-capable)
     // --------------------------------------------------
-    // Decoder only touches a NET slot after:
-    // - slot is marked filled
-    // - slot session matches current play session
-    // --------------------------------------------------
-    const int slot = HttpStreamEngine::netRead;
+    int decode_loops = starving ? 3 : 1;
 
-    if (!HttpStreamEngine::netBufFilled[slot]) {
-      // Cooperative wait – HTTP may still be filling
-      vTaskDelay(pdMS_TO_TICKS(1));
-      continue;
-    }
+    while (decode_loops--) {
 
-    // Validate slot belongs to *this* session
-    uint32_t sess = HttpStreamEngine::netSess[slot];
-    if (sess != cur_session) {
+      const int slot = HttpStreamEngine::netRead;
 
-      // ❌ stale slot → discard safely
+      if (!HttpStreamEngine::netBufFilled[slot])
+        break;
+
+      uint32_t sess = HttpStreamEngine::netSess[slot];
+      if (sess != cur_session) {
+
+        HttpStreamEngine::netBufFilled[slot] = false;
+        HttpStreamEngine::netSize[slot]      = 0;
+        HttpStreamEngine::netOffset[slot]    = 0;
+
+        HttpStreamEngine::netRead =
+          (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
+
+        continue;
+      }
+
+      uint8_t* ptr    = HttpStreamEngine::netBuffers[slot];
+      uint16_t bytes  = HttpStreamEngine::netSize[slot];
+      uint16_t offset = HttpStreamEngine::netOffset[slot];
+      uint8_t  tag    = HttpStreamEngine::netTag[slot];
+
+      // --------------------------------------------------
+      // Codec selection
+      // --------------------------------------------------
+      if (tag == SLOT_MP3 && active_codec != CODEC_MP3) {
+        mp3.begin();
+        active_codec = CODEC_MP3;
+        feed_codec   = CODEC_MP3;
+      }
+      else if (tag == SLOT_AAC && active_codec != CODEC_AAC) {
+        aac.begin();
+        active_codec = CODEC_AAC;
+        feed_codec   = CODEC_AAC;
+      }
+
+      // --------------------------------------------------
+      // Apply offset
+      // --------------------------------------------------
+      if (offset < bytes) {
+        ptr   += offset;
+        bytes -= offset;
+      }
+
+      // --------------------------------------------------
+      // Feed decoder
+      // --------------------------------------------------
+      if (bytes) {
+        if (active_codec == CODEC_MP3)
+          mp3.write(ptr, bytes);
+        else if (active_codec == CODEC_AAC)
+          aac.write(ptr, bytes);
+      }
+
+      // --------------------------------------------------
+      // Release NET slot
+      // --------------------------------------------------
       HttpStreamEngine::netBufFilled[slot] = false;
       HttpStreamEngine::netSize[slot]      = 0;
       HttpStreamEngine::netOffset[slot]    = 0;
 
       HttpStreamEngine::netRead =
         (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
-
-      continue;
-    }
-
-    uint8_t* ptr    = HttpStreamEngine::netBuffers[slot];
-    uint16_t bytes  = HttpStreamEngine::netSize[slot];
-    uint16_t offset = HttpStreamEngine::netOffset[slot];
-    uint8_t  tag    = HttpStreamEngine::netTag[slot];
-
-    // --------------------------------------------------
-    // Codec selection
-    // --------------------------------------------------
-    if (tag == SLOT_MP3 && active_codec != CODEC_MP3) {
-      mp3.begin();
-      active_codec = CODEC_MP3;
-      feed_codec   = CODEC_MP3;
-    }
-    else if (tag == SLOT_AAC && active_codec != CODEC_AAC) {
-      aac.begin();
-      active_codec = CODEC_AAC;
-      feed_codec   = CODEC_AAC;
     }
 
     // --------------------------------------------------
-    // Apply offset
+    // Dynamic cooperative throttle
     // --------------------------------------------------
-    if (offset < bytes) {
-      ptr   += offset;
-      bytes -= offset;
+    if (starving) {
+      vTaskDelay(1);
     }
-
-    // --------------------------------------------------
-    // Feed decoder
-    // --------------------------------------------------
-    if (bytes) {
-      if (active_codec == CODEC_MP3)
-        mp3.write(ptr, bytes);
-      else if (active_codec == CODEC_AAC)
-        aac.write(ptr, bytes);
+    else if (AudioCore::decoder_auto_paused) {
+      vTaskDelay(pdMS_TO_TICKS(6));
     }
-
-    // --------------------------------------------------
-    // Release NET slot
-    // --------------------------------------------------
-    HttpStreamEngine::netBufFilled[slot] = false;
-    HttpStreamEngine::netSize[slot]      = 0;
-    HttpStreamEngine::netOffset[slot]    = 0;
-
-    HttpStreamEngine::netRead =
-      (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
-
-    // Main cooperative throttle:
-    // limits decoder CPU usage and gives LVGL + WiFi time
-    vTaskDelay(pdMS_TO_TICKS(3));
+    else {
+      vTaskDelay(pdMS_TO_TICKS(3));
+    }
   }
 }
