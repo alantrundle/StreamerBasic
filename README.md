@@ -12,9 +12,13 @@ Must use WROVER with 8MB PSRAM - required for BT classic mode
 
 Issues
 
-LVGL + BT + WiFi pushes DRAM too far, so LVGL runs mostly in PSRAM so the dual-buffering is increidibly slow, however putting lvbuf1 in DRAM crashes WiFi + BT
-WiFi due to co-existance crashes sometimes. I work around by resseting WiFi when i get a -1 failed error during fetching/ opening.
-Sometimes crashes - I am working on them when i see them.
+LVGL + BT + WiFi pushes DRAM too far, so LVGL runs mostly in PSRAM so the dual-buffering is increidibly slow, however putting lvbuf1 in DRAM crashes WiFi + BT, again if pushed too far.
+WiFi due to co-existance crashes sometimes. 
+I rolled back to ESP32 version 6.4.0 to work around the issues.
+
+Latest ESP32 version causes BT to try to sleep, and it's generally unstable with A2DP.
+
+BT Sometimes crashes - I am working on this, however for the most part it's down to lack of available DRAM.
 
 To-Do
 
@@ -29,11 +33,13 @@ Pretty stable on the whole
 
 Currently Testing
 
-LVGL running in DRAM - 8 lines single buffer
-24 hour soak test
+LVGL running in DRAM - 4 lines single buffer
+24 hour soak test in progess
+
+PCB V1.1 Production in progress.
 
 
-Recommend Kit
+Recommend Kit without PCB
 
 ESP32 WROVER with 8MB PSRAM with TF Card
 - https://www.aliexpress.com/item/32879370278.html?spm=a2g0o.order_list.order_list_main.151.73d21802kujr90

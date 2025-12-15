@@ -5,8 +5,10 @@
 extern A2DPCore a2dp;
 
 // Helpers
-void macToStr(const uint8_t mac[6], char* out, size_t out_len) {
-  if (!out || out_len < 18) {   // "AA:BB:CC:DD:EE:FF" + '\0'
+void macToStr(const uint8_t mac[6], char *out, size_t out_len)
+{
+  if (!out || out_len < 18)
+  { // "AA:BB:CC:DD:EE:FF" + '\0'
     if (out && out_len > 0)
       out[0] = '\0';
     return;
@@ -33,7 +35,8 @@ static void my_touch_read(lv_indev_t *indev, lv_indev_data_t *data);
 // LVGL tick source
 // -------------------------------------------------
 
-static uint32_t my_tick(void) {
+static uint32_t my_tick(void)
+{
   return (uint32_t)millis();
 }
 
@@ -41,7 +44,8 @@ static uint32_t my_tick(void) {
 // Init
 // -------------------------------------------------
 
-void lvgl_init() {
+void lvgl_init()
+{
 
   // --- Panel ---
   display.init();
@@ -57,33 +61,34 @@ void lvgl_init() {
   lv_display_set_flush_cb(lv_disp, my_flush);
 
   // ✅ Larger buffers = fewer flushes
-  const int lines = 4;  // tuned: reduces stripe effect heavily
+  const int lines = 4; // tuned: reduces stripe effect heavily
   const size_t bytes = (size_t)TFT_HOR_RES * lines * sizeof(lv_color_t);
 
-  //lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  //lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  
-  lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  //lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  // lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  // lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
+  lvbuf1 = (lv_color_t *)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  // lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   lvbuf2 = nullptr;
 
-  if (lvbuf1 && lvbuf2) {
+  if (lvbuf1 && lvbuf2)
+  {
     lv_display_set_buffers(
-      lv_disp,
-      lvbuf1,
-      lvbuf2,
-      bytes,
-      LV_DISPLAY_RENDER_MODE_PARTIAL
-    );
-  } else {
+        lv_disp,
+        lvbuf1,
+        lvbuf2,
+        bytes,
+        LV_DISPLAY_RENDER_MODE_PARTIAL);
+  }
+  else
+  {
     // fallback single buffer
     lv_display_set_buffers(
-      lv_disp,
-      lvbuf1,
-      nullptr,
-      bytes,
-      LV_DISPLAY_RENDER_MODE_PARTIAL
-    );
+        lv_disp,
+        lvbuf1,
+        nullptr,
+        bytes,
+        LV_DISPLAY_RENDER_MODE_PARTIAL);
   }
 
   // --- Touch ---
@@ -97,7 +102,8 @@ void lvgl_init() {
 
   lv_timer_create(ui_update_timer_cb, UI_UPDATE_PERIOD_MS, nullptr);
 
-  xTaskCreatePinnedToCore([](void*) {
+  xTaskCreatePinnedToCore([](void *)
+                          {
 
     for (;;) {
 
@@ -105,8 +111,7 @@ void lvgl_init() {
 
         // 3️⃣ Delay sets LVGL cadence
         vTaskDelay(pdMS_TO_TICKS(10));
-    }
-  }, "LVGL", 6144, nullptr, LVGL_TASK_PRIORITY, nullptr, 1);
+    } }, "LVGL", 6144, nullptr, LVGL_TASK_PRIORITY, nullptr, 1);
 
   Serial.println("[LVGL] TFT setup done");
 }
@@ -114,7 +119,8 @@ void lvgl_init() {
 // -------------------------------------------------
 // ✅ GUI Updates - LVGL Timer
 // -------------------------------------------------
-static void ui_update_timer_cb(lv_timer_t *t) {
+static void ui_update_timer_cb(lv_timer_t *t)
+{
 
   // Objects
   uint32_t cur = HttpStreamEngine::getPlaySession();
@@ -137,32 +143,31 @@ static void ui_update_timer_cb(lv_timer_t *t) {
   // WiFi
   ui_update_stats_wifi(WiFi.status(), WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
 
-    // widgets here only get updated when session/track changes when ID3 tag done
+  // widgets here only get updated when session/track changes when ID3 tag done
 
-    // runs once per track change
-    if (cur != last_session && HttpStreamEngine::isID3Done()) {
+  strlcpy(a2dpName, "disconnected", sizeof(a2dpName));
 
-      last_session = cur;
+  if (a2dp.connected_details(btinfo))
+  {
+    const char *name = (btinfo.name && btinfo.name[0]) ? btinfo.name : "Unknown";
+    snprintf(a2dpName, sizeof(a2dpName), "%s (%s)", name, btinfo.auto_reconnect ? "Auto" : "New");
+  }
 
-      strlcpy(a2dpName, "disconnected", sizeof(a2dpName));
+  // ID3 metadata
+  if (HttpStreamEngine::getID3(meta) && meta.header_found)
+  {
+    ui_update_player_id3(true, meta.artist, meta.title, meta.album, (int)meta.track, meta.albumArtValid ? meta.albumArtImage : nullptr, 120, 120);
+  }
+  else
+  {
+    ui_update_player_id3(true, "-", "-", "-", 0, nullptr, 0, 0);
+  }
 
-      if (a2dp.connected_details(btinfo)) {
-        const char* name = (btinfo.name && btinfo.name[0]) ? btinfo.name : "Unknown";
-        snprintf(a2dpName, sizeof(a2dpName), "%s (%s)", name, btinfo.auto_reconnect ? "Auto" : "New");
-      } 
-
-      // ID3 metadata
-      if (HttpStreamEngine::getID3(meta) && meta.header_found) {
-        ui_update_player_id3(true, meta.artist, meta.title, meta.album, (int)meta.track, meta.albumArtValid? meta.albumArtImage : nullptr , 120, 120);
-      } else {
-        ui_update_player_id3(true, "-", "-", "-", 0, nullptr, 0, 0);
-      }
-
-      // Decoder info
-      if (AudioCore::getMP3Info(info)) {
-        ui_update_stats_decoder(info.codec, info.samplerate, info.channels, info.kbps);
-      }
-    }
+  // Decoder info
+  if (AudioCore::getMP3Info(info))
+  {
+    ui_update_stats_decoder(info.codec, info.samplerate, info.channels, info.kbps);
+  }
 }
 
 // -------------------------------------------------
@@ -182,12 +187,13 @@ static void my_flush(lv_display_t *disp,
   const size_t total = w * h;
   const size_t CHUNK = 256;
 
-  lgfx::rgb565_t* p = (lgfx::rgb565_t*)px_map;
+  lgfx::rgb565_t *p = (lgfx::rgb565_t *)px_map;
 
-  for (size_t i = 0; i < total; i += CHUNK) {
+  for (size_t i = 0; i < total; i += CHUNK)
+  {
     size_t n = (i + CHUNK <= total) ? CHUNK : (total - i);
     display.writePixels(p + i, n);
-    vTaskDelay(0);              // ✅ yield to decoder / BT
+    vTaskDelay(0); // ✅ yield to decoder / BT
   }
 
   display.endWrite();
@@ -198,15 +204,18 @@ static void my_flush(lv_display_t *disp,
 // -------------------------------------------------
 // Touch
 // -------------------------------------------------
-static void my_touch_read(lv_indev_t*, lv_indev_data_t *data) {
-  uint16_t x=0, y=0; bool pressed=false;
+static void my_touch_read(lv_indev_t *, lv_indev_data_t *data)
+{
+  uint16_t x = 0, y = 0;
+  bool pressed = false;
   bool ok = display.readTouch(x, y, pressed);
 
   data->state =
-    (ok && pressed) ? LV_INDEV_STATE_PRESSED
-                    : LV_INDEV_STATE_RELEASED;
+      (ok && pressed) ? LV_INDEV_STATE_PRESSED
+                      : LV_INDEV_STATE_RELEASED;
 
-  if (ok && pressed) {
+  if (ok && pressed)
+  {
     data->point.x = x;
     data->point.y = y;
   }

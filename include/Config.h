@@ -45,7 +45,7 @@ constexpr int MIN_A2DP_PCT = 10;   // wait until PCN > 10%
 // xTask Priorities
 constexpr int DECODER_TASK_PRIORITY = 4;
 constexpr int HTTP_TASK_PRIORITY    = 3;
-constexpr int LVGL_TASK_PRIORITY    = 1;
+constexpr int LVGL_TASK_PRIORITY    = 2;
 constexpr int I2S_TASK_PRIORITY     = 2;
 
 
