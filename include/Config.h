@@ -49,7 +49,7 @@ constexpr int LVGL_TASK_PRIORITY    = 1;
 constexpr int I2S_TASK_PRIORITY     = 2;
 
 
-constexpr uint32_t UI_UPDATE_PERIOD_MS = 25;
+constexpr uint32_t UI_UPDATE_PERIOD_MS = 80;
 
 // Album Art - IDv3
 #define TJPGD_WORKSPACE_SIZE 3100
