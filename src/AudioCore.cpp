@@ -502,7 +502,16 @@ void AudioCore::decodeTask(void*) {
   for (;;) {
 
     // ==================================================
-    // 🔒 EARLY SESSION FENCE (NEW)
+    // 🔒 EARLY SESSION FENCE
+    // --------------------------------------------------
+    // Detects any change in HTTP play session.
+    // This prevents the decoder from ever touching
+    // NET buffers that belong to a previous track.
+    //
+    // Delay here is purely cooperative:
+    // - gives HTTP time to reset sockets
+    // - gives LVGL time to update UI state
+    // - no audio work is happening yet
     // ==================================================
     uint32_t cur_session = HttpStreamEngine::getPlaySession();
     if (cur_session != last_session) {
@@ -520,12 +529,21 @@ void AudioCore::decodeTask(void*) {
       AudioCore::set_a2dp_output(false);
       a2dp_enabled_this_session = false;
 
-      vTaskDelay(pdMS_TO_TICKS(1));
+      // Increased to reduce CPU spikes during track changes
+      vTaskDelay(pdMS_TO_TICKS(3));
       continue;   // 🚫 do NOT touch NET slots this cycle
     }
 
     // --------------------------------------------------
     // Stream inactive → DRAIN, NOT ABORT
+    // --------------------------------------------------
+    // When HTTP has stopped but PCM may still contain
+    // data, allow decoder to flush final frames cleanly.
+    //
+    // Delay here is safe to increase because:
+    // - no decoding pressure exists
+    // - NET is idle
+    // - helps LVGL + WiFi responsiveness
     // --------------------------------------------------
     if (!HttpStreamEngine::stream_running) {
 
@@ -545,7 +563,9 @@ void AudioCore::decodeTask(void*) {
         AudioCore::decoder_auto_paused = false;
         a2dp_output = false;
         a2dp_enabled_this_session = false;
-        vTaskDelay(pdMS_TO_TICKS(1));
+
+        // Longer delay is safe here – no real-time work
+        vTaskDelay(pdMS_TO_TICKS(5));
         continue;
       }
     }
@@ -553,9 +573,15 @@ void AudioCore::decodeTask(void*) {
     // --------------------------------------------------
     // NET priming phase
     // --------------------------------------------------
+    // Wait until HTTP has pre-filled enough NET slots
+    // before decoding starts.
+    //
+    // Slightly increased delay reduces contention with
+    // HTTPFillTask while keeping startup latency low.
+    // --------------------------------------------------
     if (priming) {
       if (net_filled_slots() < (int)PRIME_SLOTS) {
-        vTaskDelay(1);
+        vTaskDelay(pdMS_TO_TICKS(2));
         continue;
       }
       priming = false;
@@ -569,6 +595,7 @@ void AudioCore::decodeTask(void*) {
     size_t fill = a2dp_buffer_fill;
     portEXIT_CRITICAL(&a2dp_mux);
 
+    // Enable A2DP only once sufficient PCM exists
     if (!a2dp_enabled_this_session) {
       if (fill >= MIN_A2DP_BYTES) {
         a2dp_output = true;
@@ -582,23 +609,36 @@ void AudioCore::decodeTask(void*) {
       }
     }
 
+    // Auto-pause decoder when PCM is high
     if (!AudioCore::decoder_auto_paused && fill >= HI_BYTES)
       AudioCore::decoder_auto_paused = true;
     else if (AudioCore::decoder_auto_paused && fill <= LO_BYTES)
       AudioCore::decoder_auto_paused = false;
 
+    // --------------------------------------------------
+    // Decoder paused state
+    // --------------------------------------------------
+    // This is intentional back-pressure.
+    // Increasing delay here is very safe because
+    // PCM already has plenty of buffered audio.
+    // --------------------------------------------------
     if (AudioCore::decoder_paused || AudioCore::decoder_auto_paused) {
-      vTaskDelay(2);
+      vTaskDelay(pdMS_TO_TICKS(4));
       continue;
     }
 
     // --------------------------------------------------
-    // 🔒 SAFE NET SLOT CLAIM (NEW)
+    // 🔒 SAFE NET SLOT CLAIM
+    // --------------------------------------------------
+    // Decoder only touches a NET slot after:
+    // - slot is marked filled
+    // - slot session matches current play session
     // --------------------------------------------------
     const int slot = HttpStreamEngine::netRead;
 
     if (!HttpStreamEngine::netBufFilled[slot]) {
-      vTaskDelay(1);
+      // Cooperative wait – HTTP may still be filling
+      vTaskDelay(pdMS_TO_TICKS(1));
       continue;
     }
 
@@ -664,7 +704,8 @@ void AudioCore::decodeTask(void*) {
     HttpStreamEngine::netRead =
       (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
 
-    vTaskDelay(2);
+    // Main cooperative throttle:
+    // limits decoder CPU usage and gives LVGL + WiFi time
+    vTaskDelay(pdMS_TO_TICKS(3));
   }
 }
-
