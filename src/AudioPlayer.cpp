@@ -139,13 +139,12 @@ void AudioPlayer_Prev() {
 // --------------------------------------------------
 // Call from main loop()
 // --------------------------------------------------
-void AudioPlayer_Loop() {
+void AudioPlayer_Loop()
+{
+  const bool playing =
+    HttpStreamEngine::stream_running ||
+    AudioCore::pcm_buffer_percent() > 0;
 
-  static bool wasPlaying = false;
-
-  const bool playing = HttpStreamEngine::isPlaying();
-
-  // Detect natural EOF
   if (wasPlaying && !playing) {
 
     Serial.println("[PLAYER] ▶ Playback stopped");
@@ -169,6 +168,7 @@ void AudioPlayer_Loop() {
 
   wasPlaying = playing;
 }
+
 
 // A2DP output
 int32_t pcm_data_callback(uint8_t* data, int32_t len)

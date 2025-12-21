@@ -486,10 +486,10 @@ void AudioCore::i2sPlaybackTask(void* /*param*/) {
 // ======================================================
 void AudioCore::decodeTask(void*) {
 
-  const size_t HI_BYTES   = (PCM_BUFFER_BYTES * HI_PCT) / 100;
-  const size_t LO_BYTES   = (PCM_BUFFER_BYTES * LO_PCT) / 100;
-  const size_t PRIME_SLOTS = (NUM_BUFFERS * PRIME_PCT) / 100;
-  const size_t MIN_A2DP_BYTES = (PCM_BUFFER_BYTES * MIN_A2DP_PCT) / 100;
+  const size_t HI_BYTES        = (PCM_BUFFER_BYTES * HI_PCT) / 100;
+  const size_t LO_BYTES        = (PCM_BUFFER_BYTES * LO_PCT) / 100;
+  const size_t PRIME_SLOTS     = (NUM_BUFFERS * PRIME_PCT) / 100;
+  const size_t MIN_A2DP_BYTES  = (PCM_BUFFER_BYTES * MIN_A2DP_PCT) / 100;
 
   uint32_t last_session = 0xFFFFFFFF;
   bool priming = true;
@@ -498,6 +498,12 @@ void AudioCore::decodeTask(void*) {
 
   static UBaseType_t base_prio = uxTaskPriorityGet(NULL);
   static bool prio_boosted = false;
+
+  // ---- Diagnostics ----
+  static bool pcm_was_empty = false;
+  static bool pcm_was_full  = false;
+  static uint32_t last_pcm_evt_ms = 0;
+  static bool net_drop_reported = false;
 
   for (;;) {
 
@@ -525,12 +531,11 @@ void AudioCore::decodeTask(void*) {
       continue;
     }
 
-    // OPT: cache these
     const bool stream_running = HttpStreamEngine::stream_running;
     const int  net_slots      = net_filled_slots();
 
     // ==================================================
-    // DRAIN WHEN STREAM STOPS
+    // STREAM STOP → DRAIN
     // ==================================================
     if (!stream_running) {
 
@@ -570,11 +575,40 @@ void AudioCore::decodeTask(void*) {
     const size_t fill = a2dp_buffer_fill;
     portEXIT_CRITICAL(&a2dp_mux);
 
+    const int pcm_pct = (fill * 100) / PCM_BUFFER_BYTES;
+
+    // --------------------------------------------------
+    // PCM UNDERRUN / OVERRUN DIAGNOSTICS
+    // --------------------------------------------------
+    if (pcm_pct <= 0) {
+      if (!pcm_was_empty) {
+        uint32_t now = millis();
+        Serial.printf("[DEC] ⚠ PCM UNDERRUN (0%%) dt=%lums\n",
+                      now - last_pcm_evt_ms);
+        last_pcm_evt_ms = now;
+        pcm_was_empty = true;
+      }
+    }
+    else pcm_was_empty = false;
+
+    if (pcm_pct >= 100) {
+      if (!pcm_was_full) {
+        uint32_t now = millis();
+        Serial.printf("[DEC] ⚠ PCM OVERRUN (%d%%) dt=%lums\n",
+                      pcm_pct, now - last_pcm_evt_ms);
+        last_pcm_evt_ms = now;
+        pcm_was_full = true;
+      }
+    }
+    else pcm_was_full = false;
+
+    // --------------------------------------------------
+    // STARVATION
+    // --------------------------------------------------
     const bool pcm_starving = (fill <= LO_BYTES);
     const bool net_starving = (net_slots <= 1);
     const bool starving    = pcm_starving || net_starving;
 
-    // OPT: edge-triggered priority change
     if (starving && !prio_boosted) {
       vTaskPrioritySet(NULL, base_prio + 1);
       prio_boosted = true;
@@ -585,27 +619,13 @@ void AudioCore::decodeTask(void*) {
     }
 
     // ==================================================
-    // A2DP ENABLE / STICKY DISABLE
+    // A2DP ENABLE
     // ==================================================
     if (!a2dp_enabled_this_session) {
       if (fill >= MIN_A2DP_BYTES) {
         a2dp_output = true;
         a2dp_enabled_this_session = true;
-        Serial.println("[Decoder] Enabling A2DP output.");
-      }
-    }
-    else {
-      static uint32_t zero_since = 0;
-
-      if (!stream_running && fill == 0) {
-        if (!zero_since) zero_since = millis();
-        if (millis() - zero_since > 600) {
-          set_a2dp_output(false);
-          a2dp_enabled_this_session = false;
-        }
-      }
-      else {
-        zero_since = 0;
+        Serial.println("[DEC] A2DP enabled");
       }
     }
 
@@ -623,49 +643,93 @@ void AudioCore::decodeTask(void*) {
     }
 
     // ==================================================
-    // NET → DECODER
+    // NET → DECODER (FRAME-SAFE)
     // ==================================================
     int decode_loops = starving ? 3 : 1;
 
     while (decode_loops--) {
 
       const int slot = HttpStreamEngine::netRead;
-      if (!HttpStreamEngine::netBufFilled[slot]) break;
+      if (!HttpStreamEngine::netBufFilled[slot])
+        break;
 
+      // ---- Session mismatch → drop slot (diagnostic)
       if (HttpStreamEngine::netSess[slot] != cur_session) {
+
+        if (!net_drop_reported) {
+          Serial.printf(
+            "[DEC] ⚠ NET SLOT DROPPED slot=%d sess=%lu cur=%lu\n",
+            slot,
+            HttpStreamEngine::netSess[slot],
+            cur_session);
+          net_drop_reported = true;
+        }
+
         HttpStreamEngine::netBufFilled[slot] = false;
-        HttpStreamEngine::netRead = (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
+        HttpStreamEngine::netOffset[slot]    = 0;
+        HttpStreamEngine::netRead =
+          (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
         continue;
       }
+      net_drop_reported = false;
 
       uint8_t* ptr   = HttpStreamEngine::netBuffers[slot];
-      uint16_t bytes = HttpStreamEngine::netSize[slot];
+      uint16_t size  = HttpStreamEngine::netSize[slot];
       uint16_t off   = HttpStreamEngine::netOffset[slot];
       uint8_t  tag   = HttpStreamEngine::netTag[slot];
 
+      // ---- Codec select
       if (tag == SLOT_MP3 && active_codec != CODEC_MP3) {
-        mp3.begin(); active_codec = feed_codec = CODEC_MP3;
+        mp3.begin();
+        active_codec = feed_codec = CODEC_MP3;
       }
       else if (tag == SLOT_AAC && active_codec != CODEC_AAC) {
-        aac.begin(); active_codec = feed_codec = CODEC_AAC;
+        aac.begin();
+        active_codec = feed_codec = CODEC_AAC;
       }
 
-      if (off < bytes) { ptr += off; bytes -= off; }
-
-      if (bytes) {
-        if (active_codec == CODEC_MP3) mp3.write(ptr, bytes);
-        else if (active_codec == CODEC_AAC) aac.write(ptr, bytes);
+      if (off >= size) {
+        HttpStreamEngine::netBufFilled[slot] = false;
+        HttpStreamEngine::netOffset[slot] = 0;
+        HttpStreamEngine::netRead =
+          (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
+        continue;
       }
 
+      ptr  += off;
+      size -= off;
+
+      // ---- FEED DECODER (partial-write safe)
+      int written = 0;
+      if (active_codec == CODEC_MP3)
+        written = mp3.write(ptr, size);
+      else if (active_codec == CODEC_AAC)
+        written = aac.write(ptr, size);
+
+      if (written < size) {
+        HttpStreamEngine::netOffset[slot] += written;
+
+        Serial.printf(
+          "[DEC] ⚠ FRAME HOLD %s %d/%d PCM=%d%%\n",
+          (active_codec == CODEC_MP3 ? "MP3" : "AAC"),
+          written, size,
+          pcm_pct);
+
+        break;  // stop feeding this loop
+      }
+
+      // ---- Slot fully consumed
       HttpStreamEngine::netBufFilled[slot] = false;
-      HttpStreamEngine::netRead = (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
+      HttpStreamEngine::netOffset[slot]    = 0;
+      HttpStreamEngine::netRead =
+        (HttpStreamEngine::netRead + 1) % NUM_BUFFERS;
     }
 
     // ==================================================
-    // COOPERATIVE THROTTLE (single exit)
+    // COOPERATIVE THROTTLE
     // ==================================================
-    if (starving)               vTaskDelay(1);
+    if (starving)                 vTaskDelay(1);
     else if (decoder_auto_paused) vTaskDelay(pdMS_TO_TICKS(6));
-    else                         vTaskDelay(pdMS_TO_TICKS(3));
+    else                          vTaskDelay(pdMS_TO_TICKS(3));
   }
 }
