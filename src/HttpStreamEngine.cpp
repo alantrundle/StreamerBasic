@@ -234,28 +234,20 @@ void HttpStreamEngine::httpFillTask(void*)
   ID3v2Collector id3c{};
   ID3v2Meta&     id3 = HttpStreamEngine::id3m;
 
-  bool id3_done = false;
-
-  int64_t content_len = -1;
-  int64_t bytes_seen  = 0;
-
   for (;;) {
 
     const uint32_t my_session = g_play_session;
 
-    // ---------- idle ----------
+    // ================= IDLE =================
     if (!stream_running || !g_url_open) {
       vTaskDelay(2);
       continue;
     }
 
+    // OPT: single clean close
     http.end();
     sock.stop();
-
-    while (sock.connected() || http.connected()) {
-      Serial.println("[HTTP] trying to close HTTP");
-      vTaskDelay(1); 
-    }
+    vTaskDelay(1);
 
     if (!http.begin(sock, g_open_url)) {
       vTaskDelay(2);
@@ -266,7 +258,7 @@ void HttpStreamEngine::httpFillTask(void*)
     http.setTimeout(800);
     http.setConnectTimeout(3000);
 
-    int code = http.GET();
+    const int code = http.GET();
     if (code != HTTP_CODE_OK && code != HTTP_CODE_PARTIAL_CONTENT) {
       http.end();
       sock.stop();
@@ -274,13 +266,13 @@ void HttpStreamEngine::httpFillTask(void*)
       continue;
     }
 
-    // ---------- stream init ----------
-    content_len = http.getSize();
-    bytes_seen  = 0;
+    // ================= STREAM INIT =================
+    int64_t content_len = http.getSize();
+    int64_t bytes_seen  = 0;
 
     SlotCodec session_tag = SLOT_UNKNOWN;
-    bool session_locked   = false;
-    id3_done = false;
+    bool session_locked  = false;
+    bool id3_done        = false;
 
     id3v2_reset_collector(&id3c);
     id3v2_reset_meta(&id3);
@@ -288,18 +280,20 @@ void HttpStreamEngine::httpFillTask(void*)
     Serial.printf("[HTTP] Connected: %s (len=%lld)\n",
                   g_open_url, (long long)content_len);
 
-    // ================= stream =================
+    // ================= STREAM =================
     while (stream_running && g_play_session == my_session) {
 
-      // yield if NET ring full
+      // NET ring full → yield
       if (netBufFilled[netWrite]) {
         vTaskDelay(1);
         continue;
       }
 
-      int avail = sock.available();
+      const bool sock_ok = sock.connected();
+      const int  avail   = sock.available();
+
       if (avail <= 0) {
-        if (!sock.connected()) break;
+        if (!sock_ok) break;
         vTaskDelay(2);
         continue;
       }
@@ -312,9 +306,8 @@ void HttpStreamEngine::httpFillTask(void*)
       }
 
       uint8_t* dst = netBuffers[netWrite];
-      int readn = sock.read(dst, toRead);
-      if (readn <= 0)
-        continue;
+      const int readn = sock.read(dst, toRead);
+      if (readn <= 0) continue;
 
       bytes_seen += readn;
 
@@ -323,31 +316,31 @@ void HttpStreamEngine::httpFillTask(void*)
 
       // ---------- ID3 peel ----------
       if (!id3_done && len) {
+
         id3v2_try_begin(cur, len, bytes_seen - len,
                         MAX_CHUNK_SIZE, &id3c);
 
-        size_t taken = id3v2_consume(cur, len, &id3c, &id3);
+        const size_t taken =
+          id3v2_consume(cur, len, &id3c, &id3);
+
         cur += taken;
         len -= taken;
 
         if (!id3c.collecting && !id3_done) {
           id3_done = true;
           g_id3_done = true;
-      
           Serial.println("[HTTP] ✅ ID3 phase complete");
         }
 
-        if (len == 0)
-          continue;
+        if (!len) continue;
       }
 
       // ---------- header detection ----------
-      if (!session_locked && id3_done && len > 0) {
+      if (!session_locked && id3_done && len) {
 
         audetect::DetectResult dr{};
         if (audetect::detect_audio_format_strict(cur, len, &dr)) {
 
-          // ✅ valid codec?
           if (dr.format == audetect::AF_MP3 ||
               dr.format == audetect::AF_AAC_ADTS) {
 
@@ -365,14 +358,13 @@ void HttpStreamEngine::httpFillTask(void*)
 
             session_locked = true;
 
-            Serial.printf("[HTTP] 🔒 Codec locked (%s), offset=%d\n",
+            Serial.printf(
+              "[HTTP] 🔒 Codec locked (%s), offset=%d\n",
               (session_tag == SLOT_MP3 ? "MP3" : "AAC"), off);
 
-            if (len == 0)
-              continue;
+            if (!len) continue;
           }
           else {
-            // ❌ false match (Xing / padding) → skip and retry
             int skip = dr.offset + 1;
             if (skip > (int)len) skip = len;
 
@@ -388,7 +380,7 @@ void HttpStreamEngine::httpFillTask(void*)
       }
 
       // ---------- publish NET slot ----------
-      if (session_locked && len > 0) {
+      if (session_locked && len) {
 
         netSize[netWrite]      = len;
         netTag[netWrite]       = session_tag;
@@ -400,16 +392,14 @@ void HttpStreamEngine::httpFillTask(void*)
         g_lastNetWriteMs = millis();
         g_httpBytesTick  += len;
 
-        // ✅ CRITICAL: yield for BT
-        taskYIELD();
+        taskYIELD(); // BT friendliness
       }
 
       if (content_len > 0 && bytes_seen >= content_len)
         break;
     }
 
-    // -------- teardown --------
-    // -------- network EOF --------
+    // ================= TEARDOWN =================
     http.end();
     sock.stop();
 
@@ -418,48 +408,43 @@ void HttpStreamEngine::httpFillTask(void*)
 
     Serial.println("[HTTP] ⏳ Network EOF, draining PCM...");
 
-    // -------- PCM drain wait --------
-    uint32_t drain_start = millis();
-    int32_t last_change = drain_start;
-    int      last_pcm    = AudioCore::pcm_buffer_percent();
+    // ---------- PCM drain wait ----------
+    uint32_t last_change = millis();
+    int last_pcm = AudioCore::pcm_buffer_percent();
 
     while (g_play_session == my_session) {
 
       int pcm = AudioCore::pcm_buffer_percent();
 
-      // ✅ drained normally
       if (pcm <= 0) {
         Serial.println("[HTTP] ✅ PCM drained");
         break;
       }
 
-      // ✅ PCM moving → keep waiting
       if (pcm != last_pcm) {
         last_pcm = pcm;
         last_change = millis();
       }
 
-      // ❌ stuck → timeout fallback
       if (millis() - last_change > PCM_STALL_TIMEOUT_MS) {
         Serial.println("[HTTP] ⚠ PCM drain stalled, forcing end");
         break;
       }
 
-    vTaskDelay(1);
-}
+      vTaskDelay(1);
+    }
 
-  // -------- final teardown --------
-  if (g_play_session == my_session) {
+    // ---------- final ----------
+    if (g_play_session == my_session) {
 
-    g_isPlaying = false;
-    g_url_open  = false;
-    stream_eof  = false;
+      g_isPlaying = false;
+      g_url_open  = false;
+      stream_eof  = false;
 
-    Serial.println("[HTTP] ✅ Playback finished");
-  }
+      Serial.println("[HTTP] ✅ Playback finished");
+    }
 
-
-  vTaskDelay(10);
+    vTaskDelay(10);
   }
 }
 

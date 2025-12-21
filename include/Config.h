@@ -8,7 +8,7 @@ static const char* WIFI_PASS = "cdf45424e4";
 // ------------------------------
 // NET / HTTP buffering
 // ------------------------------
-#define MAX_CHUNK_SIZE 1025
+#define MAX_CHUNK_SIZE 1024
 #define NUM_BUFFERS   512
 
 // ✅ NEW robust stall handling
@@ -44,8 +44,8 @@ constexpr int MIN_A2DP_PCT = 10;   // wait until PCN > 10%
 
 // xTask Priorities
 constexpr int DECODER_TASK_PRIORITY = 4;
-constexpr int HTTP_TASK_PRIORITY    = 3;
-constexpr int LVGL_TASK_PRIORITY    = 2;
+constexpr int HTTP_TASK_PRIORITY    = 8;
+constexpr int LVGL_TASK_PRIORITY    = 1;
 constexpr int I2S_TASK_PRIORITY     = 2;
 
 
