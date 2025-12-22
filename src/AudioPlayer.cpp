@@ -10,16 +10,18 @@
 // Playlist
 // --------------------------------------------------
 static const char* urls[] = {
-  "http://81.2.125.100/codec_board/01%20-%20Sultans%20Of%20Swing.mp3",
-  "http://81.2.125.100/codec_board/10-Spin%20Doctors%20-%20Two%20princes.mp3",
-  "http://81.2.125.100/codec_board/10-Sweet%20Little%20Mystery.mp3",
-  "http://81.2.125.100/codec_board/09-Private%20investigations.mp3",
-  "http://81.2.125.100/codec_board/Cheek%20to%20Cheek/15-Lady%20In%20Red.mp3",
-  "http://81.2.125.100/codec_board/Cheek%20to%20Cheek/01-I%20Want%20To%20Know%20What%20Love%20Is.mp3",
-  "http://81.2.125.100/codec_board/Cheek%20to%20Cheek/12-Baby%20I%20Love%20Your%20Way%20_%20Freebird.mp3",
-  "http://81.2.125.100/codec_board/09%20-%20Without%20Me.mp3",
-  "http://81.2.125.100/codec_board/Steel%20Bars.mp3",
-  "http://81.2.125.100/codec_board/sample4.aac"
+  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/01.That's%20What%20Love%20Is%20All%20About.mp3",
+  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/02.(Sittin'%20On)%20The%20Dock%20Of%20The%20Bay.mp3",
+  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/03.Soul%20Provider.mp3",
+  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/04.How%20Am%20I%20Supposed%20To%20Live%20Without%20You.mp3",
+  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/05.How%20Can%20We%20Be%20Lovers.mp3",
+  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/06.When%20I'm%20Back%20On%20My%20Feet%20Again.mp3,"
+  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/07.Georgia%20On%20My%20Mind.mp3",
+  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/08.Time,%20Love%20And%20Tenderness.mp3",
+  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/09.When%20A%20Man%20Loves%20A%20Woman.mp3",
+  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/10.Missing%20You%20Now.mp3",
+  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/11.Steel%20Bars.mp3",
+  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/12.Said%20I%20Loved%20You...But%20I%20Lied.mp3"
 };
 
 static constexpr int PLAYLIST_COUNT =

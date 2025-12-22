@@ -305,7 +305,7 @@ void id3v2_try_begin(const uint8_t* buf, size_t len,
     uint32_t body = synchsafe_to_u32(&buf[6]);
     uint32_t total = 10 + body;
 
-    uint32_t max_total = 64 * max_packet_bytes;
+    uint32_t max_total = 256 * max_packet_bytes;
     if (total > max_total) {
         Serial.println("[ID3] ❌ Tag too large, skipped");
         return;

@@ -36,7 +36,7 @@ ID3v2Meta HttpStreamEngine::id3m{};
 
 bool id3_done = false;
 
-
+portMUX_TYPE net_mux = portMUX_INITIALIZER_UNLOCKED;
 
 TaskHandle_t HttpStreamEngine::httpTaskHandle = nullptr;
 
@@ -240,17 +240,17 @@ void HttpStreamEngine::httpFillTask(void*)
 
     // ================= IDLE =================
     if (!stream_running || !g_url_open) {
-      vTaskDelay(2);
+      vTaskDelay(pdMS_TO_TICKS(2));
       continue;
     }
 
-    // OPT: single clean close
+    // ---------- clean close ----------
     http.end();
     sock.stop();
-    vTaskDelay(1);
+    vTaskDelay(pdMS_TO_TICKS(1));
 
     if (!http.begin(sock, g_open_url)) {
-      vTaskDelay(2);
+      vTaskDelay(pdMS_TO_TICKS(2));
       continue;
     }
 
@@ -262,7 +262,7 @@ void HttpStreamEngine::httpFillTask(void*)
     if (code != HTTP_CODE_OK && code != HTTP_CODE_PARTIAL_CONTENT) {
       http.end();
       sock.stop();
-      vTaskDelay(2);
+      vTaskDelay(pdMS_TO_TICKS(2));
       continue;
     }
 
@@ -283,9 +283,9 @@ void HttpStreamEngine::httpFillTask(void*)
     // ================= STREAM =================
     while (stream_running && g_play_session == my_session) {
 
-      // NET ring full → yield
+      // ---------- NET ring full ----------
       if (netBufFilled[netWrite]) {
-        vTaskDelay(1);
+        vTaskDelay(pdMS_TO_TICKS(1));
         continue;
       }
 
@@ -294,7 +294,7 @@ void HttpStreamEngine::httpFillTask(void*)
 
       if (avail <= 0) {
         if (!sock_ok) break;
-        vTaskDelay(2);
+        vTaskDelay(pdMS_TO_TICKS(2));
         continue;
       }
 
@@ -307,14 +307,15 @@ void HttpStreamEngine::httpFillTask(void*)
 
       uint8_t* dst = netBuffers[netWrite];
       const int readn = sock.read(dst, toRead);
-      if (readn <= 0) continue;
+      if (readn <= 0)
+        continue;
 
       bytes_seen += readn;
 
       uint8_t* cur = dst;
       size_t   len = readn;
 
-      // ---------- ID3 peel ----------
+      // ---------- ID3 peel (DESTRUCTIVE, SAFE) ----------
       if (!id3_done && len) {
 
         id3v2_try_begin(cur, len, bytes_seen - len,
@@ -327,15 +328,16 @@ void HttpStreamEngine::httpFillTask(void*)
         len -= taken;
 
         if (!id3c.collecting && !id3_done) {
-          id3_done = true;
+          id3_done   = true;
           g_id3_done = true;
           Serial.println("[HTTP] ✅ ID3 phase complete");
         }
 
-        if (!len) continue;
+        if (!len)
+          continue;
       }
 
-      // ---------- header detection ----------
+      // ---------- HEADER DETECTION (ONE-SHOT, NON-DESTRUCTIVE) ----------
       if (!session_locked && id3_done && len) {
 
         audetect::DetectResult dr{};
@@ -362,37 +364,33 @@ void HttpStreamEngine::httpFillTask(void*)
               "[HTTP] 🔒 Codec locked (%s), offset=%d\n",
               (session_tag == SLOT_MP3 ? "MP3" : "AAC"), off);
 
-            if (!len) continue;
-          }
-          else {
-            int skip = dr.offset + 1;
-            if (skip > (int)len) skip = len;
-
-            Serial.printf(
-              "[HTTP] ⚠ Reject header format=%d offset=%d\n",
-              dr.format, dr.offset);
-
-            cur += skip;
-            len -= skip;
-            continue;
+            if (!len)
+              continue;
           }
         }
+
+        // ❗ IMPORTANT:
+        // If detection fails, DO NOT SKIP BYTES.
+        // Treat data as audio and continue.
       }
 
-      // ---------- publish NET slot ----------
+      // ---------- publish NET slot (ATOMIC) ----------
       if (session_locked && len) {
 
-        netSize[netWrite]      = len;
-        netTag[netWrite]       = session_tag;
-        netOffset[netWrite]    = 0;
-        netSess[netWrite]     = my_session;
-        netBufFilled[netWrite] = true;
+        portENTER_CRITICAL(&net_mux);
+
+        netSize[netWrite]       = len;
+        netTag[netWrite]        = session_tag;
+        netOffset[netWrite]     = 0;
+        netSess[netWrite]       = my_session;
+        netBufFilled[netWrite]  = true;
+
         netWrite = (netWrite + 1) % NUM_BUFFERS;
+
+        portEXIT_CRITICAL(&net_mux);
 
         g_lastNetWriteMs = millis();
         g_httpBytesTick  += len;
-
-        taskYIELD(); // BT friendliness
       }
 
       if (content_len > 0 && bytes_seen >= content_len)
@@ -431,7 +429,7 @@ void HttpStreamEngine::httpFillTask(void*)
         break;
       }
 
-      vTaskDelay(1);
+      vTaskDelay(pdMS_TO_TICKS(1));
     }
 
     // ---------- final ----------
@@ -444,7 +442,7 @@ void HttpStreamEngine::httpFillTask(void*)
       Serial.println("[HTTP] ✅ Playback finished");
     }
 
-    vTaskDelay(10);
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 

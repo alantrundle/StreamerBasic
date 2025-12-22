@@ -110,7 +110,7 @@ void lvgl_init()
         lv_timer_handler();
 
         // 3️⃣ Delay sets LVGL cadence
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(8));
     } }, "LVGL", 6144, nullptr, LVGL_TASK_PRIORITY, nullptr, 1);
 
   Serial.println("[LVGL] TFT setup done");
