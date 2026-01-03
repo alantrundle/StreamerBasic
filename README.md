@@ -8,9 +8,9 @@ Designed for **ESP32-WROVER (8MB PSRAM)** and intended for use with a custom PCB
 ## 📸 PCB – Prototype (v1.1)
 
 <p align="center">
-  <img src="docs/front11.jpeg" width="32%">
-  <img src="docs/front_top11.jpeg" width="32%">
-  <img src="docs/rear_battery_11.jpeg" width="32%">
+  <img src="docs/front11.jpeg" width="50%">
+  <img src="docs/front_top11.jpeg" width="50%">
+  <img src="docs/rear_battery_11.jpeg" width="50%">
 </p>
 
 **Left → Right:**  
@@ -24,7 +24,7 @@ Front view with LVGL UI • Angled top view • Rear view with Li-Po battery fit
 ## ✨ Key Features
 
 - **Automatic MP3 & AAC codec detection** (header-level)
-- **ID3v2 tag parsing** (title, artist, album)
+- **ID3v2 tag parsing** (title, artist, album & JPEG Album Art)
 - **Bluetooth A2DP output**
   - Line-out & A2DP sinks supported
   - Automatic reconnect logic
