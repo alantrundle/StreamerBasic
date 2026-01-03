@@ -26,7 +26,7 @@ Front view with LVGL UI • Angled top view • Rear view with Li-Po battery fit
 - **Automatic MP3 & AAC codec detection** (header-level)
 - **ID3v2 tag parsing** (title, artist, album)
 - **Bluetooth A2DP output**
-  - Headphones & sinks supported
+  - Line-out & A2DP sinks supported
   - Automatic reconnect logic
 - **I2S audio output**
   - Developed using PCM5102 DAC
