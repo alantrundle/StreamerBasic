@@ -120,8 +120,15 @@ Front view with LVGL UI • Angled top view • Rear view with Li-Po battery fit
 
 ## 📄 License
 
-Project status: **Active Development**  
-License: *(add here if applicable)*
+**Project status:** Active Development  
+
+**License:**  
+Free for **personal, educational, and hobbyist use**.
+
+**Commercial use is not permitted without explicit written permission from the author.**  
+This includes (but is not limited to) use in commercial products, services, or redistributed hardware.
+
+If you wish to use this project commercially, please contact the author via GitHub.
 
 ---
 
