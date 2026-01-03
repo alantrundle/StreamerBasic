@@ -10,18 +10,18 @@
 // Playlist
 // --------------------------------------------------
 static const char* urls[] = {
-  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/01.That's%20What%20Love%20Is%20All%20About.mp3",
-  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/02.(Sittin'%20On)%20The%20Dock%20Of%20The%20Bay.mp3",
-  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/03.Soul%20Provider.mp3",
-  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/04.How%20Am%20I%20Supposed%20To%20Live%20Without%20You.mp3",
-  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/05.How%20Can%20We%20Be%20Lovers.mp3",
-  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/06.When%20I'm%20Back%20On%20My%20Feet%20Again.mp3,"
-  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/07.Georgia%20On%20My%20Mind.mp3",
-  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/08.Time,%20Love%20And%20Tenderness.mp3",
-  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/09.When%20A%20Man%20Loves%20A%20Woman.mp3",
-  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/10.Missing%20You%20Now.mp3",
-  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/11.Steel%20Bars.mp3",
-  "http://81.2.125.100/codec_board/Michael%20Bolton/Greatest%20Hits%201985-1995%20(2003)/12.Said%20I%20Loved%20You...But%20I%20Lied.mp3"
+ "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/01%20-%20Intro%20(Curtain%20Call).mp3",
+ "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/02%20-%20Fack.mp3",
+ "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/03%20-%20The%20Way%20I%20Am.mp3",
+ "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/04%20-%20My%20Name%20Is.mp3",
+ "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/05%20-%20Stan%20(Feat-%20Dido).mp3",
+ "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/06%20-%20Lose%20Yourself.mp3",
+ "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/07%20-%20Shake%20That%20(Feat-%20Nate%20Dogg).mp3",
+ "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/08%20-%20Sing%20For%20The%20Moment.mp3",
+ "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/09%20-%20Without%20Me.mp3",
+ "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/10%20-%20Like%20Toy%20Soldiers.mp3",
+ "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/11%20-%20The%20Real%20Slim%20Shady.mp3",
+ "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/12%20-%20Mockingbird.mp3"
 };
 
 static constexpr int PLAYLIST_COUNT =

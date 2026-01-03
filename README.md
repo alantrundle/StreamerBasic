@@ -1,52 +1,132 @@
-All in one HTTP streaming, decoding & output
+# ESP32 Audio Streaming & Playback Platform
 
-Must use WROVER with 8MB PSRAM - required for BT classic mode
+An all-in-one **ESP32-based audio platform** providing HTTP streaming, on-device decoding, and multiple audio outputs with a full graphical UI.  
+Designed for **ESP32-WROVER (8MB PSRAM)** and intended for use with a custom PCB (v1.1) or off-the-shelf modules.
 
-- Fully Automated MP3 & AAC detection at header level
-- Supports ID3v2 Tags
-- Supports A2DP sink devices (headphones) & Auto Reconnect code
-- Supports I2S Output - PCM5102 used when developing
-- Dual Read PCM buffer for sim outputs independantly
-- Supports LVGL with touch (Runable Demo included) for ST7796
-- Supports Pause, Play, Stop, Next & Prev tracks
+---
 
-Issues
+## 📸 PCB – Prototype (v1.1)
 
-LVGL + BT + WiFi pushes DRAM too far, so LVGL runs mostly in PSRAM so the dual-buffering is increidibly slow, however putting lvbuf1 in DRAM crashes WiFi + BT, again if pushed too far.
-WiFi due to co-existance crashes sometimes. 
-I rolled back to ESP32 version 6.4.0 to work around the issues.
+<p align="center">
+  <img src="docs/front11.jpeg" width="32%">
+  <img src="docs/front_top11.jpeg" width="32%">
+  <img src="docs/rear_battery_11.jpeg" width="32%">
+</p>
 
-Latest ESP32 version causes BT to try to sleep, and it's generally unstable with A2DP.
+**Left → Right:**  
+Front view with LVGL UI • Angled top view • Rear view with Li-Po battery fitted
 
-BT Sometimes crashes - I am working on this, however for the most part it's down to lack of available DRAM.
+> ⚠️ **ESP32-WROVER with 8MB PSRAM is mandatory**  
+> Bluetooth Classic (A2DP) and LVGL require PSRAM for stability.
 
-To-Do
+---
 
-- Plex Media Server intergration
-- Bug fixes
-- Ogg Vorbis & support for other codes + better AAC support
-- LVGL dual buffering in DRAM
+## ✨ Key Features
 
-Pros
+- **Automatic MP3 & AAC codec detection** (header-level)
+- **ID3v2 tag parsing** (title, artist, album)
+- **Bluetooth A2DP output**
+  - Headphones & sinks supported
+  - Automatic reconnect logic
+- **I2S audio output**
+  - Developed using PCM5102 DAC
+- **Dual-reader PCM ring buffer**
+  - Independent A2DP & I2S consumption
+- **LVGL graphical UI**
+  - Touch support
+  - ST7796 demo included
+- **Transport controls**
+  - Play / Pause / Stop
+  - Next / Previous track
 
-Pretty stable on the whole
+---
 
-Currently Testing
+## 🧠 Architecture Overview
 
-LVGL running in DRAM - 4 lines single buffer
-24 hour soak test in progess
+- HTTP audio streaming
+- On-device MP3 / AAC decoding
+- Shared PCM buffer with independent read pointers
+- Parallel output to:
+  - Bluetooth A2DP
+  - I2S DAC
+- LVGL UI running primarily from PSRAM
+- Designed around **FreeRTOS task separation** and buffer hysteresis
 
-PCB V1.1 Production in progress.
+---
 
+## ⚠️ Known Issues & Limitations
 
-Recommend Kit without PCB
+- **LVGL + Bluetooth + Wi-Fi are extremely DRAM-heavy**
+  - LVGL buffers must reside mostly in PSRAM
+  - Moving `lvbuf1` to DRAM can crash Wi-Fi + BT
+- **Dual buffering in PSRAM is slow**
+  - Trade-off required for system stability
+- **Wi-Fi coexistence instability**
+  - Occasional crashes under heavy load
+- **ESP-IDF versions**
+  - Rolled back to **ESP32 core v6.4.0** for stability
+  - Newer versions attempt BT sleep → A2DP instability
+- **Bluetooth**
+  - Rare crashes due to DRAM exhaustion
+  - Actively under investigation
 
-ESP32 WROVER with 8MB PSRAM with TF Card
-- https://www.aliexpress.com/item/32879370278.html?spm=a2g0o.order_list.order_list_main.151.73d21802kujr90
+---
 
-4" TFT Capacitive Touch - Required for PCB V1.1 (LVGL support)
-- https://www.aliexpress.com/item/1005006698127763.html?spm=a2g0o.order_list.order_list_main.106.73d21802kujr90
+## 🧪 Current Testing Status
 
-PCM5102 DAC (I2S with Stereo RCA and headphone/lineout jack outputs)
-- https://www.aliexpress.com/item/1005005352684938.html?spm=a2g0o.order_list.order_list_main.136.73d21802kujr90
+- LVGL running partially in DRAM  
+  - Single-buffer, 4-line configuration
+- **24-hour soak test** currently in progress
+- PCB **v1.1 production** underway
 
+---
+
+## 🛠 To-Do
+
+- Plex Media Server integration
+- General bug fixes & cleanup
+- Ogg Vorbis support
+- Improved AAC decoding
+- LVGL dual buffering in DRAM (if feasible)
+
+---
+
+## ✅ Pros
+
+- Stable during extended playback
+- Robust codec detection
+- Clean separation of decode and output paths
+- Scales well with PSRAM availability
+
+---
+
+## 📦 Recommended Development Kit (Without PCB)
+
+### ESP32 Module
+**ESP32-WROVER (8MB PSRAM + TF Card)**
+- https://www.aliexpress.com/item/32879370278.html
+
+### Display
+**4″ TFT Capacitive Touch Display**  
+(Required for PCB v1.1 – LVGL)
+- https://www.aliexpress.com/item/1005006698127763.html
+
+### Audio DAC
+**PCM5102 I2S DAC**
+- Stereo RCA + headphone/line-out
+- https://www.aliexpress.com/item/1005005352684938.html
+
+---
+
+## 📄 License
+
+Project status: **Active Development**  
+License: *(add here if applicable)*
+
+---
+
+## 🙌 Acknowledgements
+
+- ESP32 Arduino Core
+- LVGL Graphics Library
+- Helix Audio Codecs

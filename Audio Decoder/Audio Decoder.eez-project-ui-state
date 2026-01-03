@@ -1,8 +1,9 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/2",
+    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/1",
     "selectedActionObject": "[Audio Decoder.eez-project]:/actions/7",
     "selectedGlobalVariableObject": "[Audio Decoder.eez-project]:/variables/globalVariables/0",
+    "selectedBitmapObject": "[Audio Decoder.eez-project]:/bitmaps/0",
     "subnavigationSelectedItems": {
       "variables-tab/sub-navigation/selected-item": "Global"
     }
@@ -193,6 +194,7 @@
               "type": "tabset",
               "id": "EDITORS",
               "weight": 58.67256637168141,
+              "selected": 1,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
@@ -230,8 +232,7 @@
                   },
                   "icon": "material:settings"
                 }
-              ],
-              "active": true
+              ]
             },
             {
               "type": "row",
@@ -251,7 +252,8 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -1025,9 +1027,12 @@
           "1": {
             "0": {}
           },
-          "3": {
-            "$selected": true
+          "2": {
+            "4": {
+              "$selected": true
+            }
           },
+          "3": {},
           "5": {}
         }
       },
@@ -1142,8 +1147,10 @@
   "lvglPart": "MAIN",
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
-    "LINE",
-    "IMAGE"
+    "LAYOUT",
+    "BACKGROUND",
+    "IMAGE",
+    "LINE"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,
