@@ -234,6 +234,3 @@ void onA2DPAudioState(esp_a2d_audio_state_t state, void* user) {
     AudioCore::set_a2dp_audio_ready(false);
   }
 }
-
-
-
