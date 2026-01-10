@@ -43,6 +43,8 @@ typedef struct _objects_t {
     lv_obj_t *player_lbl_artist;
     lv_obj_t *player_lbl_album;
     lv_obj_t *player_lbl_tracknumber;
+    lv_obj_t *img_a2dp;
+    lv_obj_t *img_i2s;
     lv_obj_t *obj3;
     lv_obj_t *bt_btn_start;
     lv_obj_t *bt_btn_connect;

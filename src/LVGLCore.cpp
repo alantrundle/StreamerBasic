@@ -1,6 +1,7 @@
 // TFT includes
 #include "LVGLCore.h"
 #include "WiFi.h"
+#include "ui/images.h"
 
 extern A2DPCore a2dp;
 
@@ -50,7 +51,7 @@ void lvgl_init()
   // --- Panel ---
   display.init();
   display.setRotation(PANEL_ROTATION);
-  display.setBrightness(180);
+  display.setBrightness(150);
   display.fillScreen(0x0000);
 
   // --- LVGL ---
@@ -125,6 +126,9 @@ static void ui_update_timer_cb(lv_timer_t *t)
   // Objects
   uint32_t cur = HttpStreamEngine::getPlaySession();
 
+  static bool last_a2dp_ready = false;
+  static bool last_i2s_enabled = false;
+
   // Output section
   static char a2dpName[32];
 
@@ -142,6 +146,27 @@ static void ui_update_timer_cb(lv_timer_t *t)
 
   // WiFi
   ui_update_stats_wifi(WiFi.status(), WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+
+
+  // ---- A2DP ----
+  bool a2dp_ready = AudioCore::is_a2dp_audio_ready();
+
+  if (a2dp_ready != last_a2dp_ready) {
+
+    lv_obj_set_style_bg_image_src(objects.img_a2dp, a2dp_ready ? &img_a2dp_on : &img_a2dp_off, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    last_a2dp_ready = a2dp_ready;
+  }
+
+  // ---- I2S ----
+  bool i2s_enabled = AudioCore::is_i2s_output_enabled();
+
+  if (i2s_enabled != last_i2s_enabled) {
+
+    lv_obj_set_style_bg_image_src(objects.img_i2s, i2s_enabled ? &img_i2s_on : &img_i2s_off, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    last_i2s_enabled = i2s_enabled;
+  }
 
   // widgets here only get updated when session/track changes when ID3 tag done
 

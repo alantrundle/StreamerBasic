@@ -592,13 +592,15 @@ void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
 
       Serial.println("[A2DP] ✅ Media START confirmed");
       AudioCore::set_a2dp_audio_ready(true);
+    } else {
+      AudioCore::set_a2dp_audio_ready(false);
     }
 
     if (cmd == ESP_A2D_MEDIA_CTRL_STOP ||
         cmd == ESP_A2D_MEDIA_CTRL_SUSPEND) {
 
-      Serial.println("[A2DP] ⏹ Media stopped");
-      AudioCore::set_a2dp_audio_ready(false);
+        Serial.println("[A2DP] ⏹ Media stopped");
+      
     }
 
     break;

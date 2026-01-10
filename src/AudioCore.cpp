@@ -61,6 +61,7 @@ void AudioCore::set_a2dp_output(bool enabled) {
 void AudioCore::set_a2dp_audio_ready(bool ready) {
   portENTER_CRITICAL(&a2dp_mux);
   a2dp_audio_ready = ready;
+  
   portEXIT_CRITICAL(&a2dp_mux);
 }
 
@@ -738,7 +739,7 @@ void AudioCore::i2sPlaybackTask(void* /*param*/) {
     // COOPERATIVE THROTTLE
     // ==================================================
     if (starving)                 vTaskDelay(pdMS_TO_TICKS(2)); 
-    else if (decoder_auto_paused) vTaskDelay(pdMS_TO_TICKS(4));
-    else                          vTaskDelay(pdMS_TO_TICKS(5));
+    else if (decoder_auto_paused) vTaskDelay(pdMS_TO_TICKS(3));
+    else                          vTaskDelay(pdMS_TO_TICKS(3));
   }
 }

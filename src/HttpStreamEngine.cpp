@@ -429,7 +429,7 @@ void HttpStreamEngine::httpFillTask(void*)
         break;
       }
 
-      vTaskDelay(pdMS_TO_TICKS(1));
+      vTaskDelay(pdMS_TO_TICKS(2));
     }
 
     // ---------- final ----------
