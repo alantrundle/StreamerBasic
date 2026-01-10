@@ -9,7 +9,7 @@ Designed for **ESP32-WROVER (8MB PSRAM)** and intended for use with a custom PCB
 
 <p align="center">
   <img src="docs/front_stats11.JPG" width="50%">
-  <img src="docs/front_player11.JPG" width="50%">
+  <img src="docs/front_player_closesup.JPG" width="50%">
   <img src="docs/front_top11.jpeg" width="50%">
   <img src="docs/rear_battery_11.jpeg" width="50%">
 </p>
