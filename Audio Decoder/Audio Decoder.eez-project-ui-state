@@ -1,9 +1,9 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/1",
+    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/2",
     "selectedActionObject": "[Audio Decoder.eez-project]:/actions/7",
     "selectedGlobalVariableObject": "[Audio Decoder.eez-project]:/variables/globalVariables/0",
-    "selectedBitmapObject": "[Audio Decoder.eez-project]:/bitmaps/0",
+    "selectedBitmapObject": "[Audio Decoder.eez-project]:/bitmaps/7",
     "subnavigationSelectedItems": {
       "variables-tab/sub-navigation/selected-item": "Global"
     }
@@ -194,7 +194,6 @@
               "type": "tabset",
               "id": "EDITORS",
               "weight": 58.67256637168141,
-              "selected": 1,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
@@ -232,7 +231,8 @@
                   },
                   "icon": "material:settings"
                 }
-              ]
+              ],
+              "active": true
             },
             {
               "type": "row",
@@ -252,8 +252,7 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ],
-                  "active": true
+                  ]
                 },
                 {
                   "type": "tabset",
@@ -1057,19 +1056,16 @@
           "1": {
             "0": {}
           },
-          "2": {
-            "$selected": true
-          },
+          "2": {},
           "3": {},
-          "5": {},
           "7": {},
           "9": {}
         }
       },
       "transform": {
         "translate": {
-          "x": -240,
-          "y": -60
+          "x": -241.70148996164073,
+          "y": -129.15250750313217
         },
         "scale": 1
       },
@@ -1147,10 +1143,8 @@
   "lvglPart": "MAIN",
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
-    "LAYOUT",
     "BACKGROUND",
-    "IMAGE",
-    "LINE"
+    "IMAGE"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,

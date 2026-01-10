@@ -11,6 +11,10 @@ extern const lv_img_dsc_t img_a2dp_on;
 extern const lv_img_dsc_t img_a2dp_off;
 extern const lv_img_dsc_t img_i2s_on;
 extern const lv_img_dsc_t img_i2s_off;
+extern const lv_img_dsc_t img_id3_artist;
+extern const lv_img_dsc_t img_id3_title;
+extern const lv_img_dsc_t img_id3_track;
+extern const lv_img_dsc_t img_id3_album;
 
 #ifndef EXT_IMG_DESC_T
 #define EXT_IMG_DESC_T
@@ -20,7 +24,7 @@ typedef struct _ext_img_desc_t {
 } ext_img_desc_t;
 #endif
 
-extern const ext_img_desc_t images[4];
+extern const ext_img_desc_t images[8];
 
 
 #ifdef __cplusplus

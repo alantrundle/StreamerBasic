@@ -610,16 +610,16 @@ void create_screen_player() {
             // playerLblTitle
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.player_lbl_title = obj;
-            lv_obj_set_pos(obj, 152, 48);
-            lv_obj_set_size(obj, 317, LV_SIZE_CONTENT);
+            lv_obj_set_pos(obj, 174, 53);
+            lv_obj_set_size(obj, 230, LV_SIZE_CONTENT);
             lv_label_set_text(obj, "-");
         }
         {
             // playerLblArtist
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.player_lbl_artist = obj;
-            lv_obj_set_pos(obj, 153, 65);
-            lv_obj_set_size(obj, 316, LV_SIZE_CONTENT);
+            lv_obj_set_pos(obj, 174, 86);
+            lv_obj_set_size(obj, 250, LV_SIZE_CONTENT);
             lv_obj_set_style_text_font(obj, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text(obj, "-");
         }
@@ -627,8 +627,8 @@ void create_screen_player() {
             // playerLblAlbum
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.player_lbl_album = obj;
-            lv_obj_set_pos(obj, 153, 83);
-            lv_obj_set_size(obj, 316, LV_SIZE_CONTENT);
+            lv_obj_set_pos(obj, 174, 118);
+            lv_obj_set_size(obj, 250, LV_SIZE_CONTENT);
             lv_obj_set_style_text_font(obj, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text(obj, "-");
         }
@@ -636,8 +636,8 @@ void create_screen_player() {
             // playerLblTracknumber
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.player_lbl_tracknumber = obj;
-            lv_obj_set_pos(obj, 153, 98);
-            lv_obj_set_size(obj, 316, LV_SIZE_CONTENT);
+            lv_obj_set_pos(obj, 174, 148);
+            lv_obj_set_size(obj, 250, LV_SIZE_CONTENT);
             lv_obj_set_style_text_font(obj, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text(obj, "-");
         }
@@ -659,6 +659,30 @@ void create_screen_player() {
             lv_obj_set_style_bg_image_src(obj, &img_i2s_off, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_image_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_bg_image_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+        {
+            lv_obj_t *obj = lv_image_create(parent_obj);
+            lv_obj_set_pos(obj, 147, 48);
+            lv_obj_set_size(obj, 25, 25);
+            lv_obj_set_style_bg_image_src(obj, &img_id3_title, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+        {
+            lv_obj_t *obj = lv_image_create(parent_obj);
+            lv_obj_set_pos(obj, 147, 81);
+            lv_obj_set_size(obj, 25, 25);
+            lv_obj_set_style_bg_image_src(obj, &img_id3_artist, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+        {
+            lv_obj_t *obj = lv_image_create(parent_obj);
+            lv_obj_set_pos(obj, 147, 113);
+            lv_obj_set_size(obj, 25, 25);
+            lv_obj_set_style_bg_image_src(obj, &img_id3_album, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+        {
+            lv_obj_t *obj = lv_image_create(parent_obj);
+            lv_obj_set_pos(obj, 147, 143);
+            lv_obj_set_size(obj, 25, 25);
+            lv_obj_set_style_bg_image_src(obj, &img_id3_track, LV_PART_MAIN | LV_STATE_DEFAULT);
         }
     }
     
