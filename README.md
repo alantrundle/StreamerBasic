@@ -147,6 +147,7 @@ GPIO 34–39
 - **LVGL + Bluetooth + Wi-Fi are extremely DRAM-heavy**
   - LVGL buffers must reside mostly in PSRAM
   - Moving `lvbuf1` to DRAM can crash Wi-Fi + BT
+  - Use 4 lines maximum
 - **Dual buffering in PSRAM is slower**
   - Trade-off required for system stability
 - **Wi-Fi coexistence instability**
@@ -155,17 +156,15 @@ GPIO 34–39
   - Rolled back to **ESP32 core v6.4.0** for stability
   - Newer versions attempt BT sleep → A2DP instability
 - **Bluetooth**
-  - Rare crashes due to DRAM exhaustion
-  - Actively under investigation
+  - Seems stable
 
 ---
 
 ## 🧪 Current Testing Status
 
-- LVGL running partially in DRAM  
-  - Single-buffer, 4-line configuration
-- **24-hour soak testing** in progress
-- PCB **v1.1 production** underway
+- Use stable branch for latest stable
+- Use main branch for latest code. Warning - This may be broken if I am making changes.
+
 
 ---
 
