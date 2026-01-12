@@ -72,13 +72,13 @@ The PCB v1.1 is wired for a **4″ ST7796 SPI TFT with capacitive touch**, shari
 |-----------|------------|------------|------|
 | **VCC** | 3.3 V | — | Display power |
 | **GND** | GND | — | Ground |
-| **CS** | GPIO 33 | **P33** | TFT Chip Select |
-| **RST** | GPIO 32 | **P32** | TFT Reset |
-| **RS** | GPIO 27 | **P27** | TFT Register Select |
-| **MOSI** | GPIO 23 | **P23** | SPI MOSI |
-| **SCK** | GPIO 18 | **P18** | SPI SCK |
-| **BL** | GPIO 25 | **P25** | TFT Backlight |
-| **MISO** | GPIO 34 | **P34** | SPI MISO |
+| **CS** | GPIO 33 | **P8** | TFT Chip select |
+| **RST** | GPIO 32 | **P7** | TFT reset |
+| **DC/RS** | GPIO 27 | **P13** | TFT DC/RS |
+| **MOSI** | GPIO 23 | **P37** | VSPI MOSI |
+| **SCK** | GPIO 18 | **P30** | VSPI CLK |
+| **BL** | GPIO 25 | **P10** | TFT Backlight - PWM capable |
+| **MISO** | GPIO 34 | **P37** | VSPI MISO |
 
 ---
 
@@ -88,7 +88,7 @@ The PCB v1.1 is wired for a **4″ ST7796 SPI TFT with capacitive touch**, shari
 
 | Touch Signal | ESP32 GPIO | ESP32 Pin # | Notes |
 | **SCL** | GPIO 22 | **P36** | I²C Clock |
-| **RST** | GPIO 26 | **P10** | Touch reset |
+| **RST** | GPIO 26 | **P11** | Touch reset |
 | **SDA** | GPIO 21 | **P33** | I²C Data |
 | **INT** | GPIO 39 | **P4** | Touch interrupt (input-only) |
 
@@ -100,10 +100,10 @@ The PCB v1.1 is wired for a **4″ ST7796 SPI TFT with capacitive touch**, shari
 |----------|------------|------------|------|
 | **VCC** | 3.3 V | — | Power |
 | **GND** | GND | — | Ground |
-| **CS** | GPIO 5 | **P15** | SD Card Chip Select |
-| **SCK** | GPIO 18 | **P30** | Shared SPI Clock |
-| **MOSI** | GPIO 23 | **P37** | Shared SPI MOSI |
-| **MISO** | GPIO 34 | **P31** | Shared SPI MISO |
+| **CS** | GPIO 5 | **P29** | SD Card Chip Select |
+| **SCK** | GPIO 18 | **P30** | Shared VSPI Clock |
+| **MOSI** | GPIO 23 | **P37** | Shared VSPI MOSI |
+| **MISO** | GPIO 34 | **P5** | Shared VSPI MISO |
 
 ---
 
@@ -113,28 +113,31 @@ Unused GPIOs are exposed via an **Expansion Header** for future peripherals (enc
 
 | Expansion | ESP32 GPIO | ESP32 Pin # | Notes |
 |---------|------------|------------|------|
-| **VCC** | 3.3 V | — | Power |
+| **3.3V** | 3.3 V | — | Power Output |
 | **GND** | GND | — | Ground |
-| **SDA** | GPIO 21 | **P5** | SDA - Shared with TS |
-| **SCL** | GPIO 22 | **P6** | SCL - Shared with TS |
-| **SD CS** | GPIO 5 | **P12** | GPIO  - Spare if SD Card Not used |
-| **GPIO 4** | GPIO 4 | **P12** | GPIO  - Spare if SD Card Not used |
-| **GPIO 15** | GPIO 15 | **P12** | GPIO15 |
-| **GPIO 19** | GPIO 19 | **P12** | GPIO19 |
-| **GPIO 35** | GPIO 4 | **P12** | GPI35  - Input Only |
-| **GPIO 36** | GPIO 4 | **P12** | GPI36  - Input Only |
-| **3.3 V** | 3.3 V | — | Power output |
+| **SDA** | GPIO 21 | **P33** | I²C SDA (shared with Touch) |
+| **SCL** | GPIO 22 | **P36** | I²C SCL (shared with Touch) |
+| **SD_CS** | GPIO 5 | **P29** | GPIO if SD not used (strap pin – don’t drive at boot)|
+| **GPIO 4** | GPIO 4 | **P26** | GPIO (strap behaviour – keep low/floating at boot)|
+| **GPIO 15** | GPIO 15 | **P14** | GPIO (strap pin – must be LOW at boot) |
+| **GPIO 19** | GPIO 19 | **P31** | GPIO |
+| **GPIO 35** | GPIO 35 | **P6** | Input-only (ADC)|
+| **GPIO 36** | GPIO 36 | **P3** | Input-only (ADC)|
+| **3.3V** | 3.3 V | — | Power output |
 | **GND** | GND | — | Ground |
 
 ---
 
 ### ⚠️ Electrical & Boot Notes
 
-- GPIO **34–39 are input-only**
-- GPIO **0 / 2 / 12 / 15 are boot-strap pins**
-- TFT & SD **must not assert CS during boot**
-- SPI bus validated up to **40 MHz**
-- Entire display subsystem is **3.3 V logic only**
+⚠️ Use with care
+GPIO 4, 5 & 15 → boot strap pins (must not be driven during reset)
+Must be LOW or floating at boot
+
+GPIO 34 / 39 → input-only, no pullups
+
+❌ Output not possible
+GPIO 34–39
 
 ---
 
