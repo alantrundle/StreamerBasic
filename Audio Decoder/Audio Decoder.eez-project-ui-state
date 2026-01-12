@@ -1,9 +1,9 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/2",
-    "selectedActionObject": "[Audio Decoder.eez-project]:/actions/7",
+    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/5",
+    "selectedActionObject": "[Audio Decoder.eez-project]:/actions/10",
     "selectedGlobalVariableObject": "[Audio Decoder.eez-project]:/variables/globalVariables/0",
-    "selectedBitmapObject": "[Audio Decoder.eez-project]:/bitmaps/7",
+    "selectedBitmapObject": "[Audio Decoder.eez-project]:/bitmaps/12",
     "subnavigationSelectedItems": {
       "variables-tab/sub-navigation/selected-item": "Global"
     }
@@ -35,8 +35,8 @@
           },
           {
             "type": "border",
-            "selected": 2,
-            "size": 240,
+            "selected": 0,
+            "size": 70.39404487609863,
             "location": "right",
             "children": [
               {
@@ -84,6 +84,7 @@
           {
             "type": "border",
             "selected": 1,
+            "size": 53.80029487609863,
             "location": "bottom",
             "children": [
               {
@@ -130,7 +131,7 @@
             {
               "type": "row",
               "id": "#28ba0164-4baa-4ae9-9bef-249dec136bf1",
-              "weight": 15,
+              "weight": 22.37535503861412,
               "children": [
                 {
                   "type": "tabset",
@@ -193,17 +194,17 @@
             {
               "type": "tabset",
               "id": "EDITORS",
-              "weight": 58.67256637168141,
+              "weight": 51.29721133306731,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
                 {
                   "type": "tab",
-                  "id": "#4a40af38-0ee5-419c-ae2e-e14907759678",
-                  "name": "Player",
+                  "id": "#d60999a5-43db-4b9a-8ec2-682252833808",
+                  "name": "Brightness",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[Audio Decoder.eez-project]:/userPages/2",
+                    "objectPath": "[Audio Decoder.eez-project]:/userPages/5",
                     "permanent": false
                   },
                   "icon": "svg:page"
@@ -231,8 +232,7 @@
                   },
                   "icon": "material:settings"
                 }
-              ],
-              "active": true
+              ]
             },
             {
               "type": "row",
@@ -252,7 +252,8 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -789,7 +790,8 @@
                       "component": "styles",
                       "enableClose": false
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -1001,14 +1003,17 @@
     "[Audio Decoder.eez-project]:/userPages/0[flow-state]": {
       "selection": {
         "0": {
-          "1": {},
+          "1": {
+            "$selected": true
+          },
+          "2": {},
           "3": {}
         }
       },
       "transform": {
         "translate": {
-          "x": -235,
-          "y": -140
+          "x": -247.01067973828748,
+          "y": -118.58057723486671
         },
         "scale": 1
       },
@@ -1024,21 +1029,14 @@
         "0": {
           "0": {},
           "1": {
-            "0": {}
-          },
-          "2": {
-            "4": {
-              "$selected": true
-            }
-          },
-          "3": {},
-          "5": {}
+            "$selected": true
+          }
         }
       },
       "transform": {
         "translate": {
-          "x": -200.46020991019563,
-          "y": -218.71130334280426
+          "x": -208.7935429123921,
+          "y": -148.57241724098424
         },
         "scale": 1
       },
@@ -1054,10 +1052,9 @@
         "0": {
           "0": {},
           "1": {
-            "0": {}
+            "$selected": true
           },
           "2": {},
-          "3": {},
           "7": {},
           "9": {}
         }
@@ -1080,15 +1077,13 @@
       "selection": {
         "0": {
           "1": {
-            "0": {
-              "$selected": true
-            }
+            "$selected": true
           },
-          "3": {},
-          "4": {},
-          "5": {
+          "2": {
             "0": {}
-          }
+          },
+          "4": {},
+          "5": {}
         }
       },
       "transform": {
@@ -1108,15 +1103,39 @@
     "[Audio Decoder.eez-project]:/userPages/4[flow-state]": {
       "selection": {
         "0": {
-          "0": {
+          "1": {
+            "0": {},
             "$selected": true
           }
         }
       },
       "transform": {
         "translate": {
-          "x": -227.58558090209965,
-          "y": -275.829345703125
+          "x": -147.94113670658047,
+          "y": -123.53353455537668
+        },
+        "scale": 1
+      },
+      "timeline": {
+        "isEditorActive": false,
+        "position": 0,
+        "secondToPx": 200,
+        "scrollLeft": 0
+      }
+    },
+    "[Audio Decoder.eez-project]:/userPages/5[flow-state]": {
+      "selection": {
+        "0": {
+          "1": {},
+          "2": {
+            "$selected": true
+          }
+        }
+      },
+      "transform": {
+        "translate": {
+          "x": -251.9167634629301,
+          "y": -157.4642474374148
         },
         "scale": 1
       },
@@ -1144,7 +1163,15 @@
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
     "BACKGROUND",
-    "IMAGE"
+    "IMAGE",
+    "TEXT",
+    "BORDER",
+    "LAYOUT",
+    "PADDING",
+    "POSITION AND SIZE",
+    "MARGIN",
+    "SHADOW",
+    "MISCELLANEOUS"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,

@@ -1,6 +1,7 @@
 #include "actions.h"
 #include "ui.h"        // EEZ Studio export, contains ui_start, ui_* objects
 
+#include "LVGLCore.h"
 #include "AudioPlayer.h"  
 
 #include "A2DPCore.h"  
@@ -46,6 +47,27 @@ static void goto_bluetooth_view()
     }
 }
 
+static void goto_wifi_view()
+{
+    if (objects.player) {
+        lv_scr_load_anim( objects.wifi, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 200, 0, false);                 
+    }
+}
+
+static void goto_brightness_view()
+{
+    if (objects.player) {
+        lv_scr_load_anim( objects.brightness, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 200, 0, false);                 
+    }
+}
+
+static void drag_brightness() {
+    int32_t val = lv_slider_get_value(objects.slider_brightness);
+    display.setBrightness(val);
+}
+
+
+
 
 
 // -----------------------------------------------------------------------------
@@ -70,6 +92,21 @@ void action_goto_player_view(lv_event_t * e) {
 void action_goto_bluetooth_view(lv_event_t * e) {
     LV_UNUSED(e);   // avoid compiler warnings
     goto_bluetooth_view();
+}
+
+void action_goto_wifi_view(lv_event_t * e) {
+    LV_UNUSED(e);   // avoid compiler warnings
+    goto_wifi_view();
+}
+
+void action_goto_brightness_view(lv_event_t * e) {
+    LV_UNUSED(e);   // avoid compiler warnings
+    goto_brightness_view();
+}
+
+void action_brightness_drag(lv_event_t * e) {
+    LV_UNUSED(e);   // avoid compiler warnings
+    drag_brightness();
 }
 
 void action_player_play_pause(lv_event_t * e) {

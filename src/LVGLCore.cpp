@@ -62,15 +62,14 @@ void lvgl_init()
   lv_display_set_flush_cb(lv_disp, my_flush);
 
   // ✅ Larger buffers = fewer flushes
-  const int lines = 4; // tuned: reduces stripe effect heavily
+  const int lines = 256; // tuned: reduces stripe effect heavily
   const size_t bytes = (size_t)TFT_HOR_RES * lines * sizeof(lv_color_t);
 
-  // lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  // lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  lvbuf1 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
-  lvbuf1 = (lv_color_t *)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  // lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  lvbuf2 = nullptr;
+  //lvbuf1 = (lv_color_t *)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  //lvbuf2 = (lv_color_t*)heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 
   if (lvbuf1 && lvbuf2)
   {

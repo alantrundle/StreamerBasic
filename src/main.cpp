@@ -177,10 +177,8 @@ void setup() {
 
   connectWiFi();
 
-  //esp_bt_sleep_disable();
-
   // enable Player controls button now were up!
-  lv_obj_clear_state(objects.start_btn, LV_STATE_DISABLED);
+  lv_obj_clear_state(objects.btn_menu_player, LV_STATE_DISABLED);
 
   memUsage();
 }
