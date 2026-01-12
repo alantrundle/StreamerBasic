@@ -192,6 +192,67 @@ static void ui_update_timer_cb(lv_timer_t *t)
   {
     ui_update_stats_decoder(info.codec, info.samplerate, info.channels, info.kbps);
   }
+
+  // ----------------------------
+  // BT Screen
+  // ----------------------------
+  
+  // scan button - disabled if scan blocked
+  if (a2dp.scan_blocked()) {
+        lv_obj_add_state(objects.bt_btn_start, LV_STATE_DISABLED);
+    
+  } else {
+        lv_obj_clear_state(objects.bt_btn_start, LV_STATE_DISABLED);
+  }
+
+  // connect button - enable if more than 1 device found
+  uint16_t count = lv_dropdown_get_option_cnt(objects.bt_devicelist);
+
+  bool enable = false;
+
+  if (count > 0) {
+    uint16_t sel = lv_dropdown_get_selected(objects.bt_devicelist);
+
+    char txt[64];
+    lv_dropdown_get_selected_str(objects.bt_devicelist, txt, sizeof(txt));
+
+    if (strcmp(txt, "No devices") != 0 || count != 0) {
+        enable = true;
+    } 
+  } 
+
+  if (enable) {
+    lv_obj_clear_state(objects.bt_btn_connect, LV_STATE_DISABLED);
+  } else {
+    lv_obj_add_state(objects.bt_btn_connect, LV_STATE_DISABLED);
+  }
+
+  // last connect label
+  A2DPNvState st;
+  char saved_name[32];
+
+  if (a2dp.poll_nv_state(st, saved_name, sizeof(saved_name))) {
+
+    if ((st == A2DPNvState::SAVED || st == A2DPNvState::LOADED) && saved_name[0] != '\0') {
+      lv_label_set_text(objects.bt_lbl_lastdevice, saved_name);
+    } else {
+      lv_label_set_text(objects.bt_lbl_lastdevice, "[EMPTY]");
+    }
+  }
+
+  // ---- COLOUR: every tick (prevents it snapping back to black) ----
+  const bool has_text = (lv_label_get_text(objects.bt_lbl_lastdevice) &&
+                         lv_label_get_text(objects.bt_lbl_lastdevice)[0]);
+
+  if (has_text) {
+    lv_color_t col = a2dp.isConnected() ? lv_palette_main(LV_PALETTE_GREEN) : lv_palette_main(LV_PALETTE_RED);
+
+    // Selector 0 = all states/parts (hardest to override)
+    lv_obj_set_style_text_color(objects.bt_lbl_lastdevice, col, 0);
+  } else {
+    // Optional: restore default if blank
+    // lv_obj_remove_style(objects.bt_lbl_lastdevice, NULL, 0);
+  }
 }
 
 // -------------------------------------------------

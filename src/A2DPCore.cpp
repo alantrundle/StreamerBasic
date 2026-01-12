@@ -9,12 +9,16 @@
 
 #define AR_NAMESPACE "a2dp_ar"
 #define AR_KEY       "table"
-#define AR_MAX       10
+#define AR_MAX       1
 
 typedef struct {
   uint8_t mac[6];
   char    name[32];
 } AutoReconnectEntry;
+
+volatile A2DPNvState A2DPCore::nv_state_ = A2DPNvState::NONE;
+char A2DPCore::nv_saved_name_[32] = {0};
+
 
 // ------------------------------------------------------------
 // Static storage
@@ -43,33 +47,82 @@ static void ar_init()
   nvs_handle_t nvs;
   if (nvs_open(AR_NAMESPACE, NVS_READWRITE, &nvs) != ESP_OK) return;
 
-  size_t len = sizeof(ar_table);
+  size_t len = 0;
   esp_err_t r = nvs_get_blob(nvs, AR_KEY, nullptr, &len);
-  if (r == ESP_ERR_NVS_NOT_FOUND) {
+
+  // Create new blob if missing OR wrong size (e.g. AR_MAX changed)
+  if (r == ESP_ERR_NVS_NOT_FOUND || len != sizeof(ar_table)) {
+
     memset(ar_table, 0, sizeof(ar_table));
+
+    // If an old key exists with different size, erase then recreate
+    nvs_erase_key(nvs, AR_KEY);
     nvs_set_blob(nvs, AR_KEY, ar_table, sizeof(ar_table));
     nvs_commit(nvs);
+
+    Serial.printf("[A2DP] 🧹 NV table initialized (size=%u)\n",
+                  (unsigned)sizeof(ar_table));
   }
+
   nvs_close(nvs);
 }
 
 static void ar_load()
 {
+  memset(ar_table, 0, sizeof(ar_table));
+
   nvs_handle_t nvs;
   size_t len = sizeof(ar_table);
-  if (nvs_open(AR_NAMESPACE, NVS_READONLY, &nvs) != ESP_OK) return;
-  nvs_get_blob(nvs, AR_KEY, ar_table, &len);
+
+  if (nvs_open(AR_NAMESPACE, NVS_READONLY, &nvs) != ESP_OK) {
+    // Treat as empty
+    A2DPCore::nv_saved_name_[0] = '\0';
+    A2DPCore::nv_state_ = A2DPNvState::NONE;
+    return;
+  }
+
+  esp_err_t r = nvs_get_blob(nvs, AR_KEY, ar_table, &len);
+
+  // Wrong size or missing key -> keep cleared
+  if (r != ESP_OK || len != sizeof(ar_table)) {
+    memset(ar_table, 0, sizeof(ar_table));
+  }
+
   nvs_close(nvs);
+
+  // Update cached UI name + state (no NVS reads needed later)
+  if (ar_table[0].mac[0]) {
+    strlcpy(A2DPCore::nv_saved_name_,
+            ar_table[0].name[0] ? ar_table[0].name : "Unknown",
+            sizeof(A2DPCore::nv_saved_name_));
+    A2DPCore::nv_state_ = A2DPNvState::LOADED;
+  } else {
+    A2DPCore::nv_saved_name_[0] = '\0';
+    A2DPCore::nv_state_ = A2DPNvState::NONE;
+  }
 }
 
 static void ar_store()
 {
   nvs_handle_t nvs;
   if (nvs_open(AR_NAMESPACE, NVS_READWRITE, &nvs) != ESP_OK) return;
+
   nvs_set_blob(nvs, AR_KEY, ar_table, sizeof(ar_table));
   nvs_commit(nvs);
   nvs_close(nvs);
+
+  // ✅ Update cached name + NV state (NO LVGL calls here)
+  if (ar_table[0].mac[0]) {
+    strlcpy(A2DPCore::nv_saved_name_,
+            ar_table[0].name[0] ? ar_table[0].name : "Unknown",
+            sizeof(A2DPCore::nv_saved_name_));
+    A2DPCore::nv_state_ = A2DPNvState::SAVED;
+  } else {
+    A2DPCore::nv_saved_name_[0] = '\0';
+    A2DPCore::nv_state_ = A2DPNvState::ERASED;
+  }
 }
+
 
 void A2DPCore::erase_autoreconnect_table()
 {
@@ -82,16 +135,15 @@ void A2DPCore::erase_autoreconnect_table()
     nvs_commit(nvs);
     nvs_close(nvs);
 
+    // ✅ Update cached UI name + state
+    nv_saved_name_[0] = '\0';
+    nv_state_ = A2DPNvState::ERASED;
+
     Serial.println("[A2DP] 🗑 Auto-reconnect table erased");
   } else {
     Serial.println("[A2DP] ❌ Failed to erase NV table");
   }
 }
-
-
-// ------------------------------------------------------------
-// Ctor
-// ------------------------------------------------------------
 
 A2DPCore::A2DPCore() {
   self_ = this;
@@ -127,6 +179,77 @@ void A2DPCore::set_autoreconnection(bool enable) {
   auto_reconnect_ = enable;
   Serial.printf("[A2DP] 🔁 Auto-reconnect %s\n",
                 enable ? "ENABLED" : "DISABLED");
+}
+
+// ------------------------------------------------------------
+// Helpers
+// ------------------------------------------------------------
+static bool mac_is_zero(const uint8_t* mac) {
+  for (int i = 0; i < 6; i++) if (mac[i] != 0x00) return false;
+  return true;
+}
+
+static bool mac_equal(const uint8_t* a, const uint8_t* b) {
+  return memcmp(a, b, 6) == 0;
+}
+
+bool A2DPCore::poll_nv_state(A2DPNvState& state, char* name, size_t name_len)
+{
+  static A2DPNvState last = A2DPNvState::NONE;
+
+  A2DPNvState now = nv_state_;
+  if (now == last) return false;
+
+  last = now;
+  state = now;
+
+  if (name && name_len) {
+    if (nv_saved_name_[0]) strlcpy(name, nv_saved_name_, name_len);
+    else name[0] = '\0';
+  }
+
+  return true;
+}
+
+
+// Overwrite slot 0 (AR_MAX=1) with MAC+name and commit.
+// If same MAC already stored, it will only update the name if different.
+static void ar_store_last_device(const uint8_t* mac, const char* name)
+{
+  if (!mac || mac_is_zero(mac)) return;
+
+  // Build new entry
+  AutoReconnectEntry e;
+  memset(&e, 0, sizeof(e));
+  memcpy(e.mac, mac, 6);
+
+  if (name && name[0]) {
+    strlcpy(e.name, name, sizeof(e.name));
+  } else {
+    strlcpy(e.name, "Unknown", sizeof(e.name));
+  }
+
+  // Decide whether we actually need to write
+  bool need_write = true;
+
+  if (ar_table[0].mac[0] && mac_equal(ar_table[0].mac, e.mac)) {
+    if (strncmp(ar_table[0].name, e.name, sizeof(ar_table[0].name)) == 0) {
+      need_write = false; // identical
+    }
+  }
+
+  // Overwrite RAM table always
+  ar_table[0] = e;
+
+  if (!need_write) return;
+
+  // ✅ Single path: commit + update enum/name
+  ar_store();
+
+  Serial.printf("[A2DP] 💾 NV overwritten: %s (%02X:%02X:%02X:%02X:%02X:%02X)\n",
+                ar_table[0].name,
+                ar_table[0].mac[0], ar_table[0].mac[1], ar_table[0].mac[2],
+                ar_table[0].mac[3], ar_table[0].mac[4], ar_table[0].mac[5]);
 }
 
 // ------------------------------------------------------------
@@ -212,24 +335,45 @@ static bool ar_contains_mac(const uint8_t* mac)
 // Scan / connect
 // ------------------------------------------------------------
 
-void A2DPCore::start_scan(uint32_t duration_seconds) {
-
+void A2DPCore::start_scan(uint32_t duration_seconds)
+{
   if (block_manual_scan_) {
     Serial.println("[A2DP] 🚫 Scan blocked");
+    scanning_ = false;
     return;
   }
 
   scan_count_ = 0;
-  scanning_   = true;
 
+  esp_err_t r = esp_bt_gap_start_discovery(
+      ESP_BT_INQ_MODE_GENERAL_INQUIRY,
+      duration_seconds,
+      0
+  );
+
+  if (r != ESP_OK) {
+    scanning_ = false;
+    Serial.printf("[BT] ❌ start_discovery failed: %s\n", esp_err_to_name(r));
+    return;
+  }
+
+  scanning_ = true;
   Serial.printf("[BT] 🔍 Scanning (%u sec)\n", duration_seconds);
-
-  esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY,
-                             duration_seconds, 0);
 }
 
-void A2DPCore::stop_scan() {
-  esp_bt_gap_cancel_discovery();
+void A2DPCore::stop_scan()
+{
+  esp_err_t r = esp_bt_gap_cancel_discovery();
+
+  // We consider "stop requested" as not scanning from the UI POV.
+  // GAP callback should also come in and keep it consistent.
+  scanning_ = false;
+
+  if (r != ESP_OK) {
+    Serial.printf("[BT] ❌ cancel_discovery failed: %s\n", esp_err_to_name(r));
+  } else {
+    Serial.println("[BT] 🛑 Scan cancel requested");
+  }
 }
 
 void A2DPCore::connect_by_index(int index)
@@ -240,24 +384,26 @@ void A2DPCore::connect_by_index(int index)
   // Manual connection overrides auto-reconnect
   connecting_via_autoreconnect_ = false;
 
-  for (int i = 0; i < AR_MAX; i++) {
-    if (ar_table[i].mac[0] == 0x00) {
-      memcpy(ar_table[i].mac, scan_bda_[index], 6);
-      strncpy(ar_table[i].name,
-              scan_name_[index][0]
-                ? scan_name_[index]
-                : "Unknown",
-              sizeof(ar_table[i].name) - 1);
-      ar_store();
+  const char* nm = scan_name_[index][0] ? scan_name_[index] : "Unknown";
 
-      Serial.printf("[A2DP] 💾 Stored NV[%d]: %s\n",
-                    i, ar_table[i].name);
-      break;
-    }
-  }
+  // ✅ ALWAYS overwrite slot 0 (AR_MAX=1)
+  ar_store_last_device(scan_bda_[index], nm);
 
   esp_a2d_source_connect(scan_bda_[index]);
 }
+
+void A2DPCore::disconnect()
+{
+  if (!connected_)
+    return;
+
+  Serial.println("[A2DP] 🔌 Disconnect requested");
+
+  esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_STOP);
+
+  esp_a2d_source_disconnect(connected_details_.mac);
+}
+
 
 // ------------------------------------------------------------
 // Delete NV entry
@@ -282,11 +428,20 @@ bool A2DPCore::connected_details(A2DPConnectedDetails& out)
 // ------------------------------------------------------------
 // GAP callback (EIR name support)
 // ------------------------------------------------------------
-
 void A2DPCore::gap_cb(esp_bt_gap_cb_event_t event,
                       esp_bt_gap_cb_param_t* param)
 {
   if (!self_) return;
+
+  // Helper: find existing scan index by MAC
+  auto find_scan_index = [](const esp_bd_addr_t bda) -> int {
+    for (int i = 0; i < scan_count_; i++) {
+      if (memcmp(scan_bda_[i], bda, sizeof(esp_bd_addr_t)) == 0) {
+        return i;
+      }
+    }
+    return -1;
+  };
 
   switch (event) {
 
@@ -295,14 +450,23 @@ void A2DPCore::gap_cb(esp_bt_gap_cb_event_t event,
     // --------------------------------------------------
     case ESP_BT_GAP_DISC_RES_EVT: {
 
-      if (scan_count_ >= MAX_SCAN) break;
+      // Extract bda early
+      const esp_bd_addr_t& bda = param->disc_res.bda;
 
-      memcpy(scan_bda_[scan_count_],
-             param->disc_res.bda,
-             sizeof(esp_bd_addr_t));
+      // --- De-dupe by MAC ---
+      int idx = find_scan_index(bda);
+      bool is_new = (idx < 0);
 
-      scan_name_[scan_count_][0] = '\0';
-      scan_rssi_[scan_count_] = -127;
+      if (is_new) {
+        if (scan_count_ >= MAX_SCAN) break;
+        idx = scan_count_;
+
+        memcpy(scan_bda_[idx], bda, sizeof(esp_bd_addr_t));
+
+        // Default placeholders
+        scan_name_[idx][0] = '\0';
+        scan_rssi_[idx]    = -127;
+      }
 
       uint8_t* eir = nullptr;
 
@@ -317,15 +481,16 @@ void A2DPCore::gap_cb(esp_bt_gap_cb_event_t event,
           eir = (uint8_t*)p->val;
         }
         else if (p->type == ESP_BT_GAP_DEV_PROP_RSSI && p->val) {
-          scan_rssi_[scan_count_] = *(int8_t*)p->val;
+          scan_rssi_[idx] = *(int8_t*)p->val;
         }
       }
 
       // ------------------------------
-      // Resolve name from EIR
+      // Resolve name from EIR (if any)
       // ------------------------------
-      if (eir) {
+      char resolved_name[32] = {0};
 
+      if (eir) {
         uint8_t name_len = 0;
         uint8_t* name = esp_bt_gap_resolve_eir_data(
             eir,
@@ -340,32 +505,55 @@ void A2DPCore::gap_cb(esp_bt_gap_cb_event_t event,
         }
 
         if (name && name_len > 0) {
-
           size_t copy_len = name_len;
-          if (copy_len >= sizeof(scan_name_[scan_count_]))
-            copy_len = sizeof(scan_name_[scan_count_]) - 1;
+          if (copy_len >= sizeof(resolved_name))
+            copy_len = sizeof(resolved_name) - 1;
 
-          memcpy(scan_name_[scan_count_], name, copy_len);
-          scan_name_[scan_count_][copy_len] = '\0';
+          memcpy(resolved_name, name, copy_len);
+          resolved_name[copy_len] = '\0';
 
-          // ✅ HARD TRIM TRAILING NON-ASCII JUNK
-          for (int i = copy_len - 1; i >= 0; i--) {
-            uint8_t c = scan_name_[scan_count_][i];
+          // ✅ Trim trailing non-printable
+          for (int j = (int)copy_len - 1; j >= 0; j--) {
+            uint8_t c = (uint8_t)resolved_name[j];
             if (c >= 32 && c <= 126) break;
-            scan_name_[scan_count_][i] = '\0';
+            resolved_name[j] = '\0';
           }
         }
       }
 
+      // ------------------------------
+      // Ensure we always have a usable name
+      // ------------------------------
+      const bool got_new_name = (resolved_name[0] != '\0');
+      const bool existing_blank = (scan_name_[idx][0] == '\0');
+      const bool existing_unknown =
+          (strncmp(scan_name_[idx], "Unknown", sizeof(scan_name_[idx])) == 0);
+
+      // If it’s a new device, set name immediately.
+      if (is_new) {
+        if (got_new_name) {
+          strlcpy(scan_name_[idx], resolved_name, sizeof(scan_name_[idx]));
+        } else {
+          strlcpy(scan_name_[idx], "Unknown", sizeof(scan_name_[idx]));
+        }
+
+        scan_count_++; // ✅ only increment for NEW unique MAC
+      }
+      // If it’s an existing MAC, only upgrade the name if we’ve learned better
+      else {
+        if (got_new_name && (existing_blank || existing_unknown)) {
+          strlcpy(scan_name_[idx], resolved_name, sizeof(scan_name_[idx]));
+        }
+        // else: keep the existing name (don’t downgrade)
+      }
+
       Serial.printf(
-        "[BT] 📡 Found: %s RSSI=%d\n",
-        scan_name_[scan_count_][0]
-          ? scan_name_[scan_count_]
-          : "Unknown",
-        scan_rssi_[scan_count_]
+        "[BT] 📡 Found: %s RSSI=%d %s\n",
+        scan_name_[idx][0] ? scan_name_[idx] : "Unknown",
+        scan_rssi_[idx],
+        is_new ? "(new)" : "(dup)"
       );
 
-      scan_count_++;
       break;
     }
 
@@ -380,7 +568,7 @@ void A2DPCore::gap_cb(esp_bt_gap_cb_event_t event,
         self_->scanning_ = false;
 
         Serial.printf(
-          "[BT] ✅ Scan complete (%d device%s)\n",
+          "[BT] ✅ Scan complete (%d unique device%s)\n",
           scan_count_,
           scan_count_ == 1 ? "" : "s"
         );
@@ -393,9 +581,8 @@ void A2DPCore::gap_cb(esp_bt_gap_cb_event_t event,
 
           for (int i = 0; i < scan_count_; i++) {
 
-            names[i] = scan_name_[i][0]
-                       ? scan_name_[i]
-                       : "Unknown";
+            // ✅ Always return a name string
+            names[i] = (scan_name_[i][0] ? scan_name_[i] : "Unknown");
 
             snprintf(macbuf[i], sizeof(macbuf[i]),
                      "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -471,11 +658,11 @@ void A2DPCore::a2dp_cb(esp_a2d_cb_event_t event,
 
       self_->connected_details_.connected = true;
 
-      // ✅ AUTHORITATIVE: connection source
-      self_->connected_details_.auto_reconnect =
-          ar_contains_mac(param->conn_stat.remote_bda);
+      // ✅ Treat "AUTO" as: device matches the saved NV entry
+      // (robust even if timing flips connecting_via_autoreconnect_)
+      self_->connected_details_.auto_reconnect = ar_contains_mac(param->conn_stat.remote_bda);
 
-      // One-shot flag — clear immediately
+      // One-shot flag (still clear it, but no longer authoritative)
       self_->connecting_via_autoreconnect_ = false;
 
       // Store MAC

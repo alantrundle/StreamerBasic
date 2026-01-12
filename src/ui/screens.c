@@ -785,36 +785,41 @@ void create_screen_bluetooth() {
             }
         }
         {
+            // bt_btn_start
             lv_obj_t *obj = lv_button_create(parent_obj);
-            lv_obj_set_pos(obj, 10, 55);
-            lv_obj_set_size(obj, 100, 50);
+            objects.bt_btn_start = obj;
+            lv_obj_set_pos(obj, 190, 66);
+            lv_obj_set_size(obj, 100, 40);
             lv_obj_add_event_cb(obj, action_bluetooth_startscan, LV_EVENT_PRESSED, (void *)0);
+            lv_obj_add_state(obj, LV_STATE_DISABLED);
             {
                 lv_obj_t *parent_obj = obj;
                 {
-                    // btBtnStart
                     lv_obj_t *obj = lv_label_create(parent_obj);
-                    objects.bt_btn_start = obj;
                     lv_obj_set_pos(obj, 0, 0);
                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                     lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_label_set_text(obj, "Start Scan");
+                    lv_label_set_text(obj, "Scan");
                 }
             }
         }
         {
+            // bt_devicelist
             lv_obj_t *obj = lv_dropdown_create(parent_obj);
-            lv_obj_set_pos(obj, 10, 128);
+            objects.bt_devicelist = obj;
+            lv_obj_set_pos(obj, 10, 168);
             lv_obj_set_size(obj, 340, LV_SIZE_CONTENT);
-            lv_dropdown_set_options(obj, "Option 1\nOption 2\nOption 3");
+            lv_dropdown_set_options(obj, "");
             lv_dropdown_set_selected(obj, 0);
         }
         {
             // btBtnConnect
             lv_obj_t *obj = lv_button_create(parent_obj);
             objects.bt_btn_connect = obj;
-            lv_obj_set_pos(obj, 369, 128);
+            lv_obj_set_pos(obj, 369, 168);
             lv_obj_set_size(obj, 100, 40);
+            lv_obj_add_event_cb(obj, action_bt_connectdevice, LV_EVENT_PRESSED, (void *)0);
+            lv_obj_add_state(obj, LV_STATE_DISABLED);
             {
                 lv_obj_t *parent_obj = obj;
                 {
@@ -828,18 +833,37 @@ void create_screen_bluetooth() {
         }
         {
             lv_obj_t *obj = lv_obj_create(parent_obj);
-            lv_obj_set_pos(obj, 10, 185);
-            lv_obj_set_size(obj, 459, 122);
+            lv_obj_set_pos(obj, 10, 259);
+            lv_obj_set_size(obj, 459, 48);
             lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE|LV_OBJ_FLAG_SCROLL_CHAIN_HOR|LV_OBJ_FLAG_SCROLL_ELASTIC|LV_OBJ_FLAG_SCROLL_MOMENTUM);
             {
                 lv_obj_t *parent_obj = obj;
                 {
+                    // bt_lbl_lastdevice
                     lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.bt_lbl_lastdevice = obj;
                     lv_obj_set_pos(obj, -11, -3);
-                    lv_obj_set_size(obj, 446, 35);
-                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_size(obj, 224, 19);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_14, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_label_set_text(obj, "Unknown");
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xffff0018), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "[EMPTY]");
+                }
+            }
+        }
+        {
+            lv_obj_t *obj = lv_button_create(parent_obj);
+            lv_obj_set_pos(obj, 388, 267);
+            lv_obj_set_size(obj, 70, 33);
+            lv_obj_add_event_cb(obj, action_bt_delete_connecttable, LV_EVENT_PRESSED, (void *)0);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    lv_obj_set_pos(obj, 0, 0);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "Remove");
                 }
             }
         }
@@ -890,6 +914,28 @@ void create_screen_wifi() {
                     lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_label_set_text(obj, "Back");
+                }
+            }
+        }
+        {
+            lv_obj_t *obj = lv_dropdown_create(parent_obj);
+            lv_obj_set_pos(obj, 24, 79);
+            lv_obj_set_size(obj, 216, LV_SIZE_CONTENT);
+            lv_dropdown_set_options(obj, "");
+            lv_dropdown_set_selected(obj, 0);
+        }
+        {
+            lv_obj_t *obj = lv_button_create(parent_obj);
+            lv_obj_set_pos(obj, 295, 74);
+            lv_obj_set_size(obj, 100, 50);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    lv_obj_set_pos(obj, 0, 0);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "Connect");
                 }
             }
         }

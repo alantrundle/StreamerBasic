@@ -66,9 +66,22 @@ static void drag_brightness() {
     display.setBrightness(val);
 }
 
+static void bt_delete_connecttable() {
+    // delete the auto connect table
+    if (a2dp.isConnected())
+    a2dp.disconnect();
 
+    a2dp.erase_autoreconnect_table();
+}
 
+static void bt_connectdevice() {
+    // delete the auto connect table
+    uint16_t sel = lv_dropdown_get_selected(objects.bt_devicelist);
 
+    Serial.printf("[BT] Connecting to device at index %d\r\n", sel);
+
+    a2dp.connect_by_index((int)sel);    
+}
 
 // -----------------------------------------------------------------------------
 // action_back: Assigned in EEZ Studio for “Back” buttons
@@ -109,6 +122,16 @@ void action_brightness_drag(lv_event_t * e) {
     drag_brightness();
 }
 
+void action_bt_delete_connecttable(lv_event_t * e) {
+    LV_UNUSED(e);   // avoid compiler warnings
+    bt_delete_connecttable();
+}
+
+void action_bt_connectdevice(lv_event_t * e) {
+    LV_UNUSED(e);   // avoid compiler warnings
+    bt_connectdevice();
+}
+
 void action_player_play_pause(lv_event_t * e) {
 
     if(isPaused) {
@@ -134,13 +157,11 @@ void action_player_next(lv_event_t * e) {
 // Blueooth View
 void action_bluetooth_startscan(lv_event_t * e) {
 
-    if(a2dp.isScanning()) {
-        lv_label_set_text(objects.bt_btn_start, "Stop Scan");
-        a2dp.stop_scan();
-    } else if (!a2dp.scan_blocked() && !a2dp.isScanning() && !a2dp.isConnected()) {
-        lv_label_set_text(objects.bt_btn_start, "Start Scan");
-        a2dp.erase_autoreconnect_table();
-        a2dp.start_scan(10);
-    }
+    Serial.printf("[UI] isScanning=%d blocked=%d isConnected=%d\n", a2dp.isScanning(), a2dp.scan_blocked(), a2dp.isConnected());
 
+    if (a2dp.isScanning()) {
+        a2dp.stop_scan();
+    }
+    
+    a2dp.start_scan(10);
 }

@@ -1,7 +1,7 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/5",
-    "selectedActionObject": "[Audio Decoder.eez-project]:/actions/10",
+    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/3",
+    "selectedActionObject": "[Audio Decoder.eez-project]:/actions/12",
     "selectedGlobalVariableObject": "[Audio Decoder.eez-project]:/variables/globalVariables/0",
     "selectedBitmapObject": "[Audio Decoder.eez-project]:/bitmaps/12",
     "subnavigationSelectedItems": {
@@ -201,10 +201,10 @@
                 {
                   "type": "tab",
                   "id": "#d60999a5-43db-4b9a-8ec2-682252833808",
-                  "name": "Brightness",
+                  "name": "Bluetooth",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[Audio Decoder.eez-project]:/userPages/5",
+                    "objectPath": "[Audio Decoder.eez-project]:/userPages/3",
                     "permanent": false
                   },
                   "icon": "svg:page"
@@ -1028,15 +1028,18 @@
       "selection": {
         "0": {
           "0": {},
-          "1": {
-            "$selected": true
+          "1": {},
+          "4": {
+            "0": {
+              "$selected": true
+            }
           }
         }
       },
       "transform": {
         "translate": {
-          "x": -208.7935429123921,
-          "y": -148.57241724098424
+          "x": -309.5897072751657,
+          "y": -144.1348502564596
         },
         "scale": 1
       },
@@ -1076,20 +1079,20 @@
     "[Audio Decoder.eez-project]:/userPages/3[flow-state]": {
       "selection": {
         "0": {
-          "1": {
+          "1": {},
+          "2": {},
+          "3": {
             "$selected": true
           },
-          "2": {
-            "0": {}
-          },
           "4": {},
-          "5": {}
+          "5": {},
+          "6": {}
         }
       },
       "transform": {
         "translate": {
-          "x": -235,
-          "y": -140
+          "x": -227.3927423122432,
+          "y": -237.6264736595424
         },
         "scale": 1
       },
@@ -1104,9 +1107,12 @@
       "selection": {
         "0": {
           "1": {
-            "0": {},
+            "0": {}
+          },
+          "2": {
             "$selected": true
-          }
+          },
+          "3": {}
         }
       },
       "transform": {
@@ -1127,15 +1133,13 @@
       "selection": {
         "0": {
           "1": {},
-          "2": {
-            "$selected": true
-          }
+          "2": {}
         }
       },
       "transform": {
         "translate": {
-          "x": -251.9167634629301,
-          "y": -157.4642474374148
+          "x": -147.95090839692375,
+          "y": -217.68837079882115
         },
         "scale": 1
       },

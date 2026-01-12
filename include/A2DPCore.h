@@ -17,6 +17,13 @@ typedef struct {
     char     name[32];     // resolved / EIR
   } A2DPConnectedDetails;
 
+enum class A2DPNvState : uint8_t {
+  NONE = 0,   // No saved device
+  LOADED,    // Loaded from NVS at startup
+  SAVED,     // New device saved / overwritten
+  ERASED     // Saved device erased
+};
+
 class A2DPCore {
 public:
   static constexpr int MAX_SCAN = 10;
@@ -33,9 +40,9 @@ public:
              const char* const* macs,
              const int8_t* rssi);
 
-  
-
   A2DPCore();
+
+  void disconnect();
 
   void set_device_name(const char* name);
   void set_connectionstate_callback(A2DPConnectionStateCallback cb);
@@ -60,8 +67,16 @@ public:
 
   bool connected_details(A2DPConnectedDetails& out);
 
+  // ✅ Poll NV state changes (non-blocking, no NVS reads)
+  // Returns true only when state changes; copies cached name.
+  bool poll_nv_state(A2DPNvState& out_state, char* out_name, size_t out_name_len);
+
+
   /* ✅ REQUIRED: call this from your main loop */
   void loop();
+
+  static volatile A2DPNvState nv_state_;
+  static char nv_saved_name_[32];
 
 private:
   static void gap_cb(esp_bt_gap_cb_event_t,

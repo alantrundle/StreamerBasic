@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include "esp_wifi.h"
 #include "esp_system.h"
+#include <string.h>
 
 #include "Config.h"
 #include "AudioCore.h"
@@ -14,6 +15,8 @@
 #include "AudioPlayer.h"
 
 #include "sdkconfig.h"
+
+
 
 A2DPCore a2dp;
 
@@ -44,35 +47,36 @@ static void connectWiFi() {
                 WiFi.localIP().toString().c_str());
 }
 
-#include <string.h>
 
-void btScanCallback(int count,
-                    const char* const* names,
-                    const char* const* macs,
-                    const int8_t* rssis)
+
+static int g_bt_scan_count = 0;
+
+void btScanCallback(int count, const char* const* names, const char* const* macs, const int8_t* rssis)
 {
-    static bool connect = false;
+    g_bt_scan_count = count;
 
-    if (connect) return;
+    static char opts[512];   // bump if you expect long names / many devices
+    opts[0] = '\0';
 
     for (int i = 0; i < count; i++) {
 
-        if (!names[i]) continue;
+        const char* nm = (names && names[i] && names[i][0]) ? names[i] : "Unknown";
 
-        if (strcmp(names[i], "WH-CH520") == 0) {
+        if (opts[0] != '\0') strlcat(opts, "\n", sizeof(opts));
+        strlcat(opts, nm, sizeof(opts));
+    }
 
-            Serial.printf("Connecting to %s (%s, RSSI %d)\r\n",
-                          names[i],
-                          macs ? macs[i] : "??",
-                          rssis ? rssis[i] : 0);
+    // Update dropdown (assumes this callback is safe to touch LVGL)
+    if (objects.bt_devicelist) {
+        lv_dropdown_clear_options(objects.bt_devicelist);
 
-            a2dp.connect_by_index(i);
-            connect = true;
-            return;
+        if (count > 0) {
+            lv_dropdown_set_options(objects.bt_devicelist, opts);
+        } else {
+            lv_dropdown_set_options(objects.bt_devicelist, "No devices");
         }
     }
 }
-
 
 void memUsage() {
 
