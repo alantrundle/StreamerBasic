@@ -20,6 +20,7 @@ extern const lv_img_dsc_t img_information_50;
 extern const lv_img_dsc_t img_player_50;
 extern const lv_img_dsc_t img_bluetooth_50;
 extern const lv_img_dsc_t img_wifi_50;
+extern const lv_img_dsc_t img_no_albumart;
 
 #ifndef EXT_IMG_DESC_T
 #define EXT_IMG_DESC_T
@@ -29,7 +30,7 @@ typedef struct _ext_img_desc_t {
 } ext_img_desc_t;
 #endif
 
-extern const ext_img_desc_t images[13];
+extern const ext_img_desc_t images[14];
 
 
 #ifdef __cplusplus

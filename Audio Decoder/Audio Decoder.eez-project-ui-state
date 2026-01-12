@@ -1,9 +1,9 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/1",
+    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/2",
     "selectedActionObject": "[Audio Decoder.eez-project]:/actions/12",
     "selectedGlobalVariableObject": "[Audio Decoder.eez-project]:/variables/globalVariables/0",
-    "selectedBitmapObject": "[Audio Decoder.eez-project]:/bitmaps/12",
+    "selectedBitmapObject": "[Audio Decoder.eez-project]:/bitmaps/13",
     "subnavigationSelectedItems": {
       "variables-tab/sub-navigation/selected-item": "Global"
     }
@@ -35,7 +35,7 @@
           },
           {
             "type": "border",
-            "selected": 0,
+            "selected": 2,
             "size": 70.39404487609863,
             "location": "right",
             "children": [
@@ -195,7 +195,6 @@
               "type": "tabset",
               "id": "EDITORS",
               "weight": 51.29721133306731,
-              "selected": 1,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
@@ -233,8 +232,7 @@
                   },
                   "icon": "material:settings"
                 }
-              ],
-              "active": true
+              ]
             },
             {
               "type": "row",
@@ -254,7 +252,8 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -1061,8 +1060,8 @@
       },
       "transform": {
         "translate": {
-          "x": -241.70148996164073,
-          "y": -129.15250750313217
+          "x": -154.85196469308653,
+          "y": -119.64343539343648
         },
         "scale": 1
       },
@@ -1078,8 +1077,7 @@
         "0": {
           "0": {},
           "1": {
-            "0": {},
-            "$selected": true
+            "0": {}
           },
           "2": {},
           "3": {},
@@ -1106,8 +1104,7 @@
       "selection": {
         "0": {
           "1": {
-            "0": {},
-            "$selected": true
+            "0": {}
           },
           "2": {},
           "3": {}

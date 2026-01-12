@@ -95,6 +95,17 @@ private:
 
   char device_name_[32] = {};
 
+  bool     auto_conn_pending_ = false;
+  uint8_t  auto_conn_mac_[6] = {0};
+
+  uint8_t  auto_conn_attempts_left_ = 0;
+  uint32_t auto_conn_next_ms_ = 0;
+
+  // Tunables (ms)
+  static constexpr uint32_t AUTO_CONN_FIRST_DELAY_MS = 1500;  // wait for headset to be ready
+  static constexpr uint32_t AUTO_CONN_RETRY_MS       = 3000;  // retry gap
+  static constexpr uint8_t  AUTO_CONN_MAX_ATTEMPTS   = 4;     // total attempts
+
   A2DPConnectionStateCallback conn_cb_  = nullptr;
   A2DPAudioStateCallback      audio_cb_ = nullptr;
   A2DPScanCallback            scan_cb_  = nullptr;

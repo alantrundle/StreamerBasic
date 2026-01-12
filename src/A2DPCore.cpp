@@ -288,20 +288,28 @@ void A2DPCore::start()
   esp_a2d_source_init();
 
   // ===== AUTO-RECONNECT =====
+    // ===== AUTO-RECONNECT =====
   if (auto_reconnect_) {
 
     block_manual_scan_ = true;
     autoreconnect_start_ms_ = millis();
 
+    // If we have a saved device, schedule a delayed + retried connect.
     for (int i = 0; i < AR_MAX; i++) {
+
       if (ar_table[i].mac[0] == 0x00)
         continue;
 
-      Serial.printf("[A2DP] 🔁 Auto-connect: %s\n",
+      Serial.printf("[A2DP] 🔁 Auto-connect scheduled: %s\n",
         ar_table[i].name[0] ? ar_table[i].name : "Unknown");
 
-      connecting_via_autoreconnect_ = true;    // ✅ authoritative flag
-      esp_a2d_source_connect(ar_table[i].mac);
+      // Mark as pending; loop() will attempt after a delay.
+      memcpy(auto_conn_mac_, ar_table[i].mac, 6);
+      auto_conn_pending_ = true;
+
+      auto_conn_attempts_left_ = AUTO_CONN_MAX_ATTEMPTS;
+      auto_conn_next_ms_ = millis() + AUTO_CONN_FIRST_DELAY_MS;
+
       break;
     }
   }
@@ -311,13 +319,58 @@ void A2DPCore::start()
 
 // ------------------------------------------------------------
 
-void A2DPCore::loop() {
-  if (!block_manual_scan_) return;
-
-  if (millis() - autoreconnect_start_ms_ >= 5000) {
-    block_manual_scan_ = false;
-    Serial.println("[A2DP] 🔓 Manual scan unblocked");
+void A2DPCore::loop()
+{
+  // Unblock manual scan after your existing timeout
+  if (block_manual_scan_) {
+    if (millis() - autoreconnect_start_ms_ >= 5000) {
+      block_manual_scan_ = false;
+      Serial.println("[A2DP] 🔓 Manual scan unblocked");
+    }
   }
+
+  // ------------------------------------------------------------
+  // Auto-connect retry engine (non-blocking)
+  // ------------------------------------------------------------
+  if (!auto_conn_pending_)
+    return;
+
+  // If already connected, stop retrying
+  if (connected_) {
+    auto_conn_pending_ = false;
+    auto_conn_attempts_left_ = 0;
+    return;
+  }
+
+  // Nothing to do yet
+  uint32_t now = millis();
+  if ((int32_t)(now - auto_conn_next_ms_) < 0)
+    return;
+
+  // Out of attempts
+  if (auto_conn_attempts_left_ == 0) {
+    Serial.println("[A2DP] ❌ Auto-connect gave up (no response)");
+    auto_conn_pending_ = false;
+    return;
+  }
+
+  // Attempt connect
+  auto_conn_attempts_left_--;
+
+  Serial.printf("[A2DP] 🔁 Auto-connect attempt (%u left)\n",
+                (unsigned)auto_conn_attempts_left_);
+
+  // This is informational now; your CONNECTED handler uses ar_contains_mac() anyway
+  connecting_via_autoreconnect_ = true;
+
+  esp_err_t r = esp_a2d_source_connect(auto_conn_mac_);
+  if (r != ESP_OK) {
+    Serial.printf("[A2DP] ❌ esp_a2d_source_connect failed: %s\n",
+                  esp_err_to_name(r));
+  }
+
+  // Schedule next retry
+  auto_conn_next_ms_ = now + AUTO_CONN_RETRY_MS;
 }
 
 static bool ar_contains_mac(const uint8_t* mac)

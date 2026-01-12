@@ -599,6 +599,7 @@ void create_screen_player() {
             objects.player_img_albumart = obj;
             lv_obj_set_pos(obj, 21, 48);
             lv_obj_set_size(obj, 120, 120);
+            lv_image_set_src(obj, &img_no_albumart);
             lv_obj_set_style_border_color(obj, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -809,7 +810,7 @@ void create_screen_bluetooth() {
             objects.bt_devicelist = obj;
             lv_obj_set_pos(obj, 10, 168);
             lv_obj_set_size(obj, 340, LV_SIZE_CONTENT);
-            lv_dropdown_set_options(obj, "");
+            lv_dropdown_set_options(obj, "No devices");
             lv_dropdown_set_selected(obj, 0);
         }
         {
@@ -921,13 +922,13 @@ void create_screen_wifi() {
             lv_obj_t *obj = lv_dropdown_create(parent_obj);
             lv_obj_set_pos(obj, 24, 79);
             lv_obj_set_size(obj, 216, LV_SIZE_CONTENT);
-            lv_dropdown_set_options(obj, "");
+            lv_dropdown_set_options(obj, "None");
             lv_dropdown_set_selected(obj, 0);
         }
         {
             lv_obj_t *obj = lv_button_create(parent_obj);
-            lv_obj_set_pos(obj, 295, 74);
-            lv_obj_set_size(obj, 100, 50);
+            lv_obj_set_pos(obj, 295, 79);
+            lv_obj_set_size(obj, 100, 40);
             {
                 lv_obj_t *parent_obj = obj;
                 {

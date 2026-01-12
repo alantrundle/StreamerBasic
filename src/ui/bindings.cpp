@@ -2,6 +2,7 @@
 #include "bindings.h"
 #include "ui.h"       // EEZ Studio generated header
 #include "screens.h"  // for 'objects'
+#include "images.h"  // for 'objects'
 
 static uint8_t last_net = 255;
 static uint8_t last_pcm = 255;
@@ -184,6 +185,9 @@ void ui_update_stats_wifi(bool connected,
     }
 }
 
+// Put this near the top of the file (once), using YOUR asset name:
+LV_IMG_DECLARE(img_no_art);
+
 void ui_update_player_id3(bool has_meta,
                           const char* artist,
                           const char* title,
@@ -202,9 +206,14 @@ void ui_update_player_id3(bool has_meta,
 
     // Album art cache
     static const uint16_t* last_pixels = nullptr;
+    static uint16_t last_w = 0, last_h = 0;
+    static bool last_default_art = true;      // what we last displayed
     static lv_image_dsc_t img_dsc;
 
     char buf[32];
+
+    // Default art pointer (LVGL built-in image asset)
+    const void* default_art = &img_no_albumart;
 
     /* ---------- NO METADATA ---------- */
     if (!has_meta) {
@@ -227,9 +236,12 @@ void ui_update_player_id3(bool has_meta,
                 lv_label_set_text(objects.player_lbl_tracknumber, "—");
         }
 
-        if (objects.player_img_albumart && last_pixels) {
+        // Show default image when no metadata
+        if (objects.player_img_albumart && !last_default_art) {
             last_pixels = nullptr;
-            lv_image_set_src(objects.player_img_albumart, NULL);
+            last_w = last_h = 0;
+            last_default_art = true;
+            lv_image_set_src(objects.player_img_albumart, default_art);
         }
 
         return;
@@ -293,28 +305,36 @@ void ui_update_player_id3(bool has_meta,
         }
     }
 
-    /* ---------- ALBUM ART (RAW RGB565) ---------- */
+    /* ---------- ALBUM ART ---------- */
     if (!objects.player_img_albumart)
         return;
 
+    // If no pixels (or invalid size): show default art
     if (!pixels || w == 0 || h == 0) {
-        if (last_pixels) {
+        if (!last_default_art) {
             last_pixels = nullptr;
-            lv_image_set_src(objects.player_img_albumart, NULL);
+            last_w = last_h = 0;
+            last_default_art = true;
+            lv_image_set_src(objects.player_img_albumart, default_art);
         }
         return;
     }
 
-    if (pixels == last_pixels)
+    // If same pointer+size and we previously showed raw art, do nothing
+    if (!last_default_art && pixels == last_pixels && w == last_w && h == last_h)
         return;
 
+    // Switch to raw art
+    last_default_art = false;
     last_pixels = pixels;
+    last_w = w;
+    last_h = h;
 
     img_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
     img_dsc.header.w  = w;
     img_dsc.header.h  = h;
     img_dsc.data      = (const uint8_t*)pixels;
-    img_dsc.data_size = w * h * 2;
+    img_dsc.data_size = (uint32_t)w * (uint32_t)h * 2u;
 
     lv_image_set_src(objects.player_img_albumart, &img_dsc);
 }

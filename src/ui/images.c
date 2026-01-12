@@ -1,6 +1,6 @@
 #include "images.h"
 
-const ext_img_desc_t images[13] = {
+const ext_img_desc_t images[14] = {
     { "a2dp_on", &img_a2dp_on },
     { "a2dp_off", &img_a2dp_off },
     { "i2s_on", &img_i2s_on },
@@ -14,4 +14,5 @@ const ext_img_desc_t images[13] = {
     { "player_50", &img_player_50 },
     { "bluetooth_50", &img_bluetooth_50 },
     { "wifi_50", &img_wifi_50 },
+    { "no_albumart", &img_no_albumart },
 };
