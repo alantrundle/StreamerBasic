@@ -166,7 +166,7 @@ GPIO 34–39
 
 - Use main branch for latest code. 
 
-⚠️ - This may be broken if I am making changes.
+⚠️ main may be broken if I am in the process of making multi-day changes.
 
 ---
 
