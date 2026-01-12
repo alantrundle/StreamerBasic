@@ -64,6 +64,9 @@ The PCB v1.1 is wired for a **4″ ST7796 SPI TFT with capacitive touch**, shari
 > ⚠️ TFT and SD **share SPI lines**  
 > Separate CS lines are mandatory and handled in firmware.
 
+**4″ TFT Capacitive Touch Display (ST7796)**  
+- https://www.aliexpress.com/item/1005006698127763.html
+
 ---
 
 ### 📌 ESP32 ↔ TFT Connections
