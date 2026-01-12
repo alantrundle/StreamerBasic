@@ -163,8 +163,8 @@ GPIO 34–39
 ## 🧪 Current Testing Status
 
 - Use stable branch for latest stable
-- Use main branch for latest code. Warning - This may be broken if I am making changes.
-
+- Use main branch for latest code. 
+⚠️ - This may be broken if I am making changes.
 
 ---
 
