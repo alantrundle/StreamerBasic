@@ -237,3 +237,10 @@ If you wish to use this project commercially, please contact the author via GitH
 - ESP32 Arduino Core  
 - LVGL Graphics Library  
 - Helix Audio Codecs  
+
+## 🙌 Development Software
+- MacOS 15.5
+- Visual Studio Code Version: 1.108.0 (Universal)
+- PlatformIO Core Version: 6.1.18·Home 3.4.4
+- EEZ Studio Version: 0.24.0
+- KiCAD Version: 9.0.6 release build
