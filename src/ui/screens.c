@@ -157,7 +157,7 @@ void create_screen_stats() {
             lv_obj_t *obj = lv_button_create(parent_obj);
             objects.btn_stats_back = obj;
             lv_obj_set_pos(obj, 0, 0);
-            lv_obj_set_size(obj, 47, 33);
+            lv_obj_set_size(obj, 85, 33);
             lv_obj_add_event_cb(obj, action_back, LV_EVENT_PRESSED, (void *)0);
             lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -170,7 +170,7 @@ void create_screen_stats() {
                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                     lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_label_set_text(obj, "Back");
+                    lv_label_set_text(obj, "< back");
                 }
             }
         }
@@ -576,7 +576,7 @@ void create_screen_player() {
             lv_obj_t *obj = lv_button_create(parent_obj);
             objects.btn_player_back = obj;
             lv_obj_set_pos(obj, 0, 0);
-            lv_obj_set_size(obj, 47, 33);
+            lv_obj_set_size(obj, 85, 33);
             lv_obj_add_event_cb(obj, action_back, LV_EVENT_PRESSED, (void *)0);
             lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -585,11 +585,11 @@ void create_screen_player() {
                 lv_obj_t *parent_obj = obj;
                 {
                     lv_obj_t *obj = lv_label_create(parent_obj);
-                    lv_obj_set_pos(obj, 0, 0);
+                    lv_obj_set_pos(obj, 1, 0);
                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                     lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_label_set_text(obj, "Back");
+                    lv_label_set_text(obj, "< back");
                 }
             }
         }
@@ -752,7 +752,7 @@ void create_screen_bluetooth() {
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.obj3 = obj;
-            lv_obj_set_pos(obj, 1, 1);
+            lv_obj_set_pos(obj, 1, 0);
             lv_obj_set_size(obj, 480, 33);
             lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE|LV_OBJ_FLAG_SCROLL_CHAIN_HOR|LV_OBJ_FLAG_SCROLL_CHAIN_VER|LV_OBJ_FLAG_SCROLL_ELASTIC|LV_OBJ_FLAG_SCROLL_MOMENTUM|LV_OBJ_FLAG_SCROLL_WITH_ARROW);
             lv_obj_set_style_text_font(obj, &lv_font_montserrat_28, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -767,7 +767,7 @@ void create_screen_bluetooth() {
             lv_obj_t *obj = lv_button_create(parent_obj);
             objects.btn_bluetooth_back = obj;
             lv_obj_set_pos(obj, 0, 1);
-            lv_obj_set_size(obj, 47, 33);
+            lv_obj_set_size(obj, 85, 32);
             lv_obj_add_event_cb(obj, action_back, LV_EVENT_PRESSED, (void *)0);
             lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -780,7 +780,7 @@ void create_screen_bluetooth() {
                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                     lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_label_set_text(obj, "Back");
+                    lv_label_set_text(obj, "< back");
                 }
             }
         }
@@ -886,7 +886,7 @@ void create_screen_wifi() {
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.obj4 = obj;
-            lv_obj_set_pos(obj, 0, 1);
+            lv_obj_set_pos(obj, 0, 0);
             lv_obj_set_size(obj, 480, 33);
             lv_obj_set_style_text_font(obj, &lv_font_montserrat_28, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -900,7 +900,7 @@ void create_screen_wifi() {
             lv_obj_t *obj = lv_button_create(parent_obj);
             objects.btn_wifi_back = obj;
             lv_obj_set_pos(obj, 0, 1);
-            lv_obj_set_size(obj, 47, 33);
+            lv_obj_set_size(obj, 85, 32);
             lv_obj_add_event_cb(obj, action_back, LV_EVENT_PRESSED, (void *)0);
             lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -913,7 +913,7 @@ void create_screen_wifi() {
                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                     lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_label_set_text(obj, "Back");
+                    lv_label_set_text(obj, "< back");
                 }
             }
         }
@@ -971,7 +971,7 @@ void create_screen_brightness() {
             lv_obj_t *obj = lv_button_create(parent_obj);
             objects.btn_wifi_back_1 = obj;
             lv_obj_set_pos(obj, 0, 1);
-            lv_obj_set_size(obj, 47, 33);
+            lv_obj_set_size(obj, 85, 33);
             lv_obj_add_event_cb(obj, action_back, LV_EVENT_PRESSED, (void *)0);
             lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -986,7 +986,7 @@ void create_screen_brightness() {
                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                     lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_label_set_text(obj, "Back");
+                    lv_label_set_text(obj, "< back");
                 }
             }
         }

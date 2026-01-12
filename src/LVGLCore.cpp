@@ -100,7 +100,7 @@ void lvgl_init()
   // --- UI ---
   ui_init();
 
-  lv_timer_create(ui_update_timer_cb, UI_UPDATE_PERIOD_MS, nullptr);
+  lv_timer_create(ui_update_critical_timer_cb, UI_UPDATE_PERIOD_MS, nullptr);
 
   xTaskCreatePinnedToCore([](void *)
                           {
@@ -119,7 +119,7 @@ void lvgl_init()
 // -------------------------------------------------
 // ✅ GUI Updates - LVGL Timer
 // -------------------------------------------------
-static void ui_update_timer_cb(lv_timer_t *t)
+static void ui_update_critical_timer_cb(lv_timer_t *t)
 {
 
   // Objects
@@ -206,23 +206,17 @@ static void ui_update_timer_cb(lv_timer_t *t)
   }
 
   // connect button - enable if more than 1 device found
+  char txt[64];
   uint16_t count = lv_dropdown_get_option_cnt(objects.bt_devicelist);
 
-  bool enable = false;
+  lv_dropdown_get_selected_str(objects.bt_devicelist, txt, sizeof(txt));
 
-  if (count > 0) {
+  if (count > 0 && strlen(txt) > 0) {
     uint16_t sel = lv_dropdown_get_selected(objects.bt_devicelist);
 
-    char txt[64];
-    lv_dropdown_get_selected_str(objects.bt_devicelist, txt, sizeof(txt));
-
-    if (strcmp(txt, "No devices") != 0 || count != 0) {
-        enable = true;
-    } 
-  } 
-
-  if (enable) {
-    lv_obj_clear_state(objects.bt_btn_connect, LV_STATE_DISABLED);
+    if (strcmp(txt, "No devices") != 0) {
+        lv_obj_clear_state(objects.bt_btn_connect, LV_STATE_DISABLED);
+    }
   } else {
     lv_obj_add_state(objects.bt_btn_connect, LV_STATE_DISABLED);
   }

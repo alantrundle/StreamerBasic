@@ -1,6 +1,6 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/3",
+    "selectedUserPageObject": "[Audio Decoder.eez-project]:/userPages/1",
     "selectedActionObject": "[Audio Decoder.eez-project]:/actions/12",
     "selectedGlobalVariableObject": "[Audio Decoder.eez-project]:/variables/globalVariables/0",
     "selectedBitmapObject": "[Audio Decoder.eez-project]:/bitmaps/12",
@@ -195,16 +195,17 @@
               "type": "tabset",
               "id": "EDITORS",
               "weight": 51.29721133306731,
+              "selected": 1,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
                 {
                   "type": "tab",
                   "id": "#d60999a5-43db-4b9a-8ec2-682252833808",
-                  "name": "Bluetooth",
+                  "name": "Player",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[Audio Decoder.eez-project]:/userPages/3",
+                    "objectPath": "[Audio Decoder.eez-project]:/userPages/2",
                     "permanent": false
                   },
                   "icon": "svg:page"
@@ -232,7 +233,8 @@
                   },
                   "icon": "material:settings"
                 }
-              ]
+              ],
+              "active": true
             },
             {
               "type": "row",
@@ -252,8 +254,7 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ],
-                  "active": true
+                  ]
                 },
                 {
                   "type": "tabset",
@@ -1030,16 +1031,14 @@
           "0": {},
           "1": {},
           "4": {
-            "0": {
-              "$selected": true
-            }
+            "0": {}
           }
         }
       },
       "transform": {
         "translate": {
-          "x": -309.5897072751657,
-          "y": -144.1348502564596
+          "x": -229.71350155372167,
+          "y": -169.49237588231475
         },
         "scale": 1
       },
@@ -1054,9 +1053,7 @@
       "selection": {
         "0": {
           "0": {},
-          "1": {
-            "$selected": true
-          },
+          "1": {},
           "2": {},
           "7": {},
           "9": {}
@@ -1079,11 +1076,13 @@
     "[Audio Decoder.eez-project]:/userPages/3[flow-state]": {
       "selection": {
         "0": {
-          "1": {},
-          "2": {},
-          "3": {
+          "0": {},
+          "1": {
+            "0": {},
             "$selected": true
           },
+          "2": {},
+          "3": {},
           "4": {},
           "5": {},
           "6": {}
@@ -1091,8 +1090,8 @@
       },
       "transform": {
         "translate": {
-          "x": -227.3927423122432,
-          "y": -237.6264736595424
+          "x": -176.6776910605326,
+          "y": -176.13447401684348
         },
         "scale": 1
       },
@@ -1107,11 +1106,10 @@
       "selection": {
         "0": {
           "1": {
-            "0": {}
-          },
-          "2": {
+            "0": {},
             "$selected": true
           },
+          "2": {},
           "3": {}
         }
       },
@@ -1132,7 +1130,11 @@
     "[Audio Decoder.eez-project]:/userPages/5[flow-state]": {
       "selection": {
         "0": {
-          "1": {},
+          "1": {
+            "0": {
+              "$selected": true
+            }
+          },
           "2": {}
         }
       },
