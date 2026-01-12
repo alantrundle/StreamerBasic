@@ -79,7 +79,6 @@ The PCB v1.1 is wired for a **4″ ST7796 SPI TFT with capacitive touch**, shari
 | **SCK** | GPIO 18 | **P18** | SPI SCK |
 | **BL** | GPIO 25 | **P25** | TFT Backlight |
 | **MISO** | GPIO 34 | **P34** | SPI MISO |
-|-------------|------------|------------|------|
 
 ---
 
@@ -92,7 +91,6 @@ The PCB v1.1 is wired for a **4″ ST7796 SPI TFT with capacitive touch**, shari
 | **RST** | GPIO 26 | **P10** | Touch reset |
 | **SDA** | GPIO 21 | **P33** | I²C Data |
 | **INT** | GPIO 39 | **P4** | Touch interrupt (input-only) |
-|-------------|-------------|------------|---------|
 
 ---
 
@@ -106,8 +104,6 @@ The PCB v1.1 is wired for a **4″ ST7796 SPI TFT with capacitive touch**, shari
 | **SCK** | GPIO 18 | **P30** | Shared SPI Clock |
 | **MOSI** | GPIO 23 | **P37** | Shared SPI MOSI |
 | **MISO** | GPIO 34 | **P31** | Shared SPI MISO |
-|----------|------------|-------------|------|
-
 
 ---
 
