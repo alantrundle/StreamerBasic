@@ -2,6 +2,7 @@
 #include "LVGLCore.h"
 #include "WiFi.h"
 #include "ui/images.h"
+#include "ui/bindings.h"
 
 extern A2DPCore a2dp;
 
@@ -102,6 +103,9 @@ void lvgl_init()
 
   lv_timer_create(ui_update_critical_timer_cb, UI_UPDATE_PERIOD_MS, nullptr);
 
+  // timer for Wifi connected status
+  lv_timer_create(ui_wifi_status_poll, 500, nullptr);
+
   xTaskCreatePinnedToCore([](void *)
                           {
 
@@ -144,7 +148,7 @@ static void ui_update_critical_timer_cb(lv_timer_t *t)
   ui_update_stats_outputs(AudioCore::is_i2s_output_enabled(), a2dp.isConnected(), a2dpName);
 
   // WiFi
-  ui_update_stats_wifi(WiFi.status(), WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+  ui_update_stats_wifi(WiFi.isConnected(), WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
 
 
   // ---- A2DP ----

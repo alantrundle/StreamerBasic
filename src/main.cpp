@@ -25,26 +25,13 @@ A2DPCore a2dp;
 // Wi-Fi helper
 // ------------------------------------------------------------
 
-static void connectWiFi() {
+static void startWiFi() {
   Serial.printf("[WIFI] Connecting to %s\n", WIFI_SSID);
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  WiFi.disconnect(true);
+  //WiFi.begin(WIFI_SSID, WIFI_PASS);
 
-  uint32_t start = millis();
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(250);
-    Serial.print(".");
-    if (millis() - start > 30000) {
-      Serial.println("\n[WIFI] ❌ Connection timeout");
-      return;
-    }
-  }
-
-
-
-  Serial.printf("\n[WIFI] ✅ Connected, IP=%s\n",
-                WiFi.localIP().toString().c_str());
 }
 
 
@@ -179,7 +166,7 @@ void setup() {
   a2dp.set_scan_callback(btScanCallback);
   a2dp.start();
 
-  connectWiFi();
+  startWiFi();
 
   // enable Player controls button now were up!
   lv_obj_clear_state(objects.btn_menu_player, LV_STATE_DISABLED);

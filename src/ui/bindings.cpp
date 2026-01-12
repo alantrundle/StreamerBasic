@@ -127,11 +127,9 @@ void ui_update_stats_outputs(bool i2s_on,
 
         // ✅ Update label if name OR connection state changes
         if (!a2dp_on) {
-            lv_label_set_text(objects.stats_lbl_a2dp_name, "—");
-            last_name[0] = '\0';
+            lv_label_set_text(objects.stats_lbl_a2dp_name, "[None]");
         }
-        else if (a2dp_name &&
-                 strcmp(a2dp_name, last_name) != 0) {
+        else if (a2dp_name && strcmp(a2dp_name, last_name) != 0) {
 
             strncpy(last_name, a2dp_name, sizeof(last_name) - 1);
             last_name[sizeof(last_name) - 1] = '\0';
@@ -141,31 +139,46 @@ void ui_update_stats_outputs(bool i2s_on,
     }
 }
 
-void ui_update_stats_wifi(bool connected,
-                          const char* ssid,
-                          const char* ip)
-{
+void ui_update_stats_wifi(bool connected, const char* ssid, const char* ip) {
+
     static bool  last_connected = false;
     static char  last_ssid[32]  = "";
     static char  last_ip[32]    = "";
+
+    if (objects.stats_lbl_wifi_on) {
+            lv_label_set_text(objects.stats_lbl_wifi_on,
+                              connected ? "Connected" : "Disconnected");
+        }
 
     /* ---------------- WIFI STATE ---------------- */
     if (connected != last_connected) {
         last_connected = connected;
 
-        if (objects.stats_lbl_wifi_on) {
-            lv_label_set_text(objects.stats_lbl_wifi_on,
-                              connected ? "Connected"
-                                        : "Disconnected");
+        // If we just became disconnected, clear the other labels immediately
+        if (!connected) {
+            last_ssid[0] = '\0';
+            last_ip[0]   = '\0';
+
+            if (objects.stats_lbl_wifi_ssid) {
+                lv_label_set_text(objects.stats_lbl_wifi_ssid, "");
+            }
+            if (objects.stats_lbl_wifi_ipaddress) {
+                lv_label_set_text(objects.stats_lbl_wifi_ipaddress, "");
+            }
         }
     }
 
+    /* If not connected, we're done (keep SSID/IP blank). */
+    if (!connected) {
+        return;
+    }
+
     /* ---------------- SSID / AP NAME ---------------- */
-    const char* ssid_safe = (ssid && *ssid) ? ssid : "—";
+    const char* ssid_safe = (ssid && *ssid) ? ssid : "";
 
     if (strcmp(ssid_safe, last_ssid) != 0) {
-        strncpy(last_ssid, ssid_safe, sizeof(last_ssid));
-        last_ssid[sizeof(last_ssid)-1] = '\0';
+        strncpy(last_ssid, ssid_safe, sizeof(last_ssid) - 1);
+        last_ssid[sizeof(last_ssid) - 1] = '\0';
 
         if (objects.stats_lbl_wifi_ssid) {
             lv_label_set_text(objects.stats_lbl_wifi_ssid, last_ssid);
@@ -173,11 +186,11 @@ void ui_update_stats_wifi(bool connected,
     }
 
     /* ---------------- IP ADDRESS ---------------- */
-    const char* ip_safe = (connected && ip && *ip) ? ip : "0.0.0.0";
+    const char* ip_safe = (ip && *ip) ? ip : "";
 
     if (strcmp(ip_safe, last_ip) != 0) {
-        strncpy(last_ip, ip_safe, sizeof(last_ip));
-        last_ip[sizeof(last_ip)-1] = '\0';
+        strncpy(last_ip, ip_safe, sizeof(last_ip) - 1);
+        last_ip[sizeof(last_ip) - 1] = '\0';
 
         if (objects.stats_lbl_wifi_ipaddress) {
             lv_label_set_text(objects.stats_lbl_wifi_ipaddress, last_ip);
@@ -186,7 +199,7 @@ void ui_update_stats_wifi(bool connected,
 }
 
 // Put this near the top of the file (once), using YOUR asset name:
-LV_IMG_DECLARE(img_no_art);
+//LV_IMG_DECLARE(img_no_art);
 
 void ui_update_player_id3(bool has_meta,
                           const char* artist,
@@ -337,4 +350,35 @@ void ui_update_player_id3(bool has_meta,
     img_dsc.data_size = (uint32_t)w * (uint32_t)h * 2u;
 
     lv_image_set_src(objects.player_img_albumart, &img_dsc);
+}
+
+// wifi connected status label
+void ui_wifi_set_status(const char* text, bool connected) {
+    if (!objects.wifi_lbl_connectstatus) return;
+
+    lv_label_set_text(objects.wifi_lbl_connectstatus, text);
+
+    if (connected) {
+        lv_obj_set_style_text_color(objects.wifi_lbl_connectstatus,
+                                    lv_color_hex(0x00C853), // green
+                                    LV_PART_MAIN);
+    } else {
+        lv_obj_set_style_text_color(objects.wifi_lbl_connectstatus,
+                                    lv_color_hex(0xD50000), // red
+                                    LV_PART_MAIN);
+    }
+}
+
+void ui_wifi_status_poll(lv_timer_t* t) {
+    (void)t;
+
+    wl_status_t st = WiFi.status();
+
+    if (st == WL_CONNECTED) {
+        ui_wifi_set_status("Connected", true);
+    } else if (st == WL_CONNECT_FAILED ||
+               st == WL_CONNECTION_LOST ||
+               st == WL_DISCONNECTED) {
+        ui_wifi_set_status("Disconnected", false);
+    }
 }

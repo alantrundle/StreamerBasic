@@ -58,6 +58,8 @@ typedef struct _objects_t {
     lv_obj_t *bt_lbl_lastdevice;
     lv_obj_t *obj4;
     lv_obj_t *btn_wifi_back;
+    lv_obj_t *wifi_dd_apnlist;
+    lv_obj_t *wifi_lbl_connectstatus;
     lv_obj_t *obj5;
     lv_obj_t *btn_wifi_back_1;
     lv_obj_t *btn_brightness_back;

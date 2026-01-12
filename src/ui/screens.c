@@ -919,26 +919,73 @@ void create_screen_wifi() {
             }
         }
         {
-            lv_obj_t *obj = lv_dropdown_create(parent_obj);
-            lv_obj_set_pos(obj, 24, 79);
-            lv_obj_set_size(obj, 216, LV_SIZE_CONTENT);
-            lv_dropdown_set_options(obj, "None");
-            lv_dropdown_set_selected(obj, 0);
-        }
-        {
-            lv_obj_t *obj = lv_button_create(parent_obj);
-            lv_obj_set_pos(obj, 295, 79);
-            lv_obj_set_size(obj, 100, 40);
+            lv_obj_t *obj = lv_tabview_create(parent_obj);
+            lv_obj_set_pos(obj, 22, 47);
+            lv_obj_set_size(obj, 436, 259);
+            lv_tabview_set_tab_bar_position(obj, LV_DIR_TOP);
+            lv_tabview_set_tab_bar_size(obj, 32);
             {
                 lv_obj_t *parent_obj = obj;
                 {
-                    lv_obj_t *obj = lv_label_create(parent_obj);
-                    lv_obj_set_pos(obj, 0, 0);
-                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_label_set_text(obj, "Connect");
+                    lv_obj_t *obj = lv_tabview_add_tab(parent_obj, "Networks");
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_button_create(parent_obj);
+                            lv_obj_set_pos(obj, 152, 26);
+                            lv_obj_set_size(obj, 100, 39);
+                            lv_obj_add_event_cb(obj, action_wifi_scan_networks, LV_EVENT_PRESSED, (void *)0);
+                            {
+                                lv_obj_t *parent_obj = obj;
+                                {
+                                    lv_obj_t *obj = lv_label_create(parent_obj);
+                                    lv_obj_set_pos(obj, 0, 0);
+                                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                    lv_label_set_text(obj, "Scan");
+                                }
+                            }
+                        }
+                        {
+                            // wifi_dd_apnlist
+                            lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                            objects.wifi_dd_apnlist = obj;
+                            lv_obj_set_pos(obj, -8, 102);
+                            lv_obj_set_size(obj, 303, LV_SIZE_CONTENT);
+                            lv_dropdown_set_options(obj, "None");
+                            lv_dropdown_set_selected(obj, 0);
+                        }
+                        {
+                            lv_obj_t *obj = lv_button_create(parent_obj);
+                            lv_obj_set_pos(obj, 308, 102);
+                            lv_obj_set_size(obj, 100, 40);
+                            lv_obj_add_event_cb(obj, action_wifi_connectapn, LV_EVENT_PRESSED, (void *)0);
+                            {
+                                lv_obj_t *parent_obj = obj;
+                                {
+                                    lv_obj_t *obj = lv_label_create(parent_obj);
+                                    lv_obj_set_pos(obj, 0, 0);
+                                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                    lv_label_set_text(obj, "Connect");
+                                }
+                            }
+                        }
+                    }
+                }
+                {
+                    lv_obj_t *obj = lv_tabview_add_tab(parent_obj, "Advanced");
                 }
             }
+        }
+        {
+            // wifi_lbl_connectstatus
+            lv_obj_t *obj = lv_label_create(parent_obj);
+            objects.wifi_lbl_connectstatus = obj;
+            lv_obj_set_pos(obj, 346, 265);
+            lv_obj_set_size(obj, 100, 16);
+            lv_obj_set_style_text_color(obj, lv_color_hex(0xffff0000), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_label_set_text(obj, "disconnected");
         }
     }
     

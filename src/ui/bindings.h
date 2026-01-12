@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include "lvgl.h"
 
+#include "WiFi.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,6 +21,8 @@ void ui_update_player_id3(bool has_meta,
                           const uint16_t* pixels,
                           uint16_t w,
                           uint16_t h);
+
+void ui_wifi_status_poll(lv_timer_t* t);
 
 #ifdef __cplusplus
 }

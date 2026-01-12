@@ -20,6 +20,8 @@ extern void action_goto_brightness_view(lv_event_t * e);
 extern void action_brightness_drag(lv_event_t * e);
 extern void action_bt_delete_connecttable(lv_event_t * e);
 extern void action_bt_connectdevice(lv_event_t * e);
+extern void action_wifi_connectapn(lv_event_t * e);
+extern void action_wifi_scan_networks(lv_event_t * e);
 
 
 #ifdef __cplusplus
