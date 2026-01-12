@@ -1,10 +1,6 @@
 #pragma once
 #include <Arduino.h>
 
-// --- Wi-Fi + Stream config ---
-static const char* WIFI_SSID = "WyseNet";
-static const char* WIFI_PASS = "cdf45424e4";
-
 // ------------------------------
 // NET / HTTP buffering
 // ------------------------------
@@ -55,3 +51,7 @@ constexpr uint32_t UI_UPDATE_PERIOD_MS = 80;
 #define TJPGD_WORKSPACE_SIZE 3100
 #define THUMB_W 120 // output size
 #define THUMB_H 120 // output size
+
+
+// -----------------------------------------------
+

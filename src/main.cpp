@@ -25,15 +25,12 @@ A2DPCore a2dp;
 // Wi-Fi helper
 // ------------------------------------------------------------
 
+// Allocate WiFi
 static void startWiFi() {
-  Serial.printf("[WIFI] Connecting to %s\n", WIFI_SSID);
 
   WiFi.mode(WIFI_STA);
   WiFi.disconnect(true);
-  //WiFi.begin(WIFI_SSID, WIFI_PASS);
-
 }
-
 
 
 static int g_bt_scan_count = 0;

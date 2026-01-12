@@ -171,6 +171,12 @@ GPIO 34–39
 
 ⚠️ main may be broken if I am in the process of making multi-day changes.
 
+12/01/2026
+- added Bluetooth Manager for Sink Devices
+- added basic WiFi handler
+- changed menu - added icons
+- added icon pack to Playback 
+
 ---
 
 ## 🛠 To-Do

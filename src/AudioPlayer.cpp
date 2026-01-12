@@ -2,31 +2,10 @@
 #include "HttpStreamEngine.h"
 #include "AudioCore.h"
 #include "A2DPCore.h"
+#include "playlistFlash.h"
 
 #include "esp_a2dp_api.h"
 
-
-// --------------------------------------------------
-// Playlist
-// --------------------------------------------------
-static const char* urls[] = {
- "http://81.2.125.100/codec_board/Eminem%20-%20Godzilla%20ft.%20Juice%20WRLD.mp3",
- "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/01%20-%20Intro%20(Curtain%20Call).mp3",
- "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/02%20-%20Fack.mp3",
- "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/03%20-%20The%20Way%20I%20Am.mp3",
- "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/04%20-%20My%20Name%20Is.mp3",
- "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/05%20-%20Stan%20(Feat-%20Dido).mp3",
- "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/06%20-%20Lose%20Yourself.mp3",
- "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/07%20-%20Shake%20That%20(Feat-%20Nate%20Dogg).mp3",
- "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/08%20-%20Sing%20For%20The%20Moment.mp3",
- "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/09%20-%20Without%20Me.mp3",
- "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/10%20-%20Like%20Toy%20Soldiers.mp3",
- "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/11%20-%20The%20Real%20Slim%20Shady.mp3",
- "http://81.2.125.100/codec_board/Eminem/Curtain%20Call-%20The%20Hits%20(2005)/12%20-%20Mockingbird.mp3"
-};
-
-static constexpr int PLAYLIST_COUNT =
-  sizeof(urls) / sizeof(urls[0]);
 
 // --------------------------------------------------
 // Player state
@@ -40,14 +19,14 @@ static bool isPaused     = false;
 // INTERNAL helper
 // --------------------------------------------------
 static void startTrack() {
-  Serial.printf("[PLAYER] ▶ Start track %d: %s\n", track, urls[track]);
+  Serial.printf("[PLAYER] ▶ Start track %d: %s\n", track, urls_flash[track]);
 
   // ✅ If player has ever been put into Play mode,
   // autoAdvance must stay enabled
   if (!isPaused)
     autoAdvance = true;
 
-  HttpStreamEngine::open(urls[track]);
+  HttpStreamEngine::open(urls_flash[track]);
   HttpStreamEngine::play();
 }
 
