@@ -69,6 +69,7 @@ The PCB v1.1 is wired for a **4″ ST7796 SPI TFT with capacitive touch**, shari
 ### 📌 ESP32 ↔ TFT Connections
 
 | TFT Signal | ESP32 GPIO | ESP32 Pin # | Notes |
+|------------|------------|-------------|-------|
 | **VCC** | 3.3 V | — | Display power |
 | **GND** | GND | — | Ground |
 | **CS** | GPIO 33 | **P8** | TFT Chip select |
@@ -86,6 +87,7 @@ The PCB v1.1 is wired for a **4″ ST7796 SPI TFT with capacitive touch**, shari
 (FT6236 / GT911 class controller)
 
 | Touch Signal | ESP32 GPIO | ESP32 Pin # | Notes |
+|--------------|------------|-------------|-------|
 | **SCL** | GPIO 22 | **P36** | I²C Clock |
 | **RST** | GPIO 26 | **P11** | Touch reset |
 | **SDA** | GPIO 21 | **P33** | I²C Data |
@@ -96,6 +98,7 @@ The PCB v1.1 is wired for a **4″ ST7796 SPI TFT with capacitive touch**, shari
 ### 💾 SD Card (Shared SPI Bus)
 
 | SD Signal | ESP32 GPIO | ESP32 Pin # | Notes |
+|-----------|------------|-------------|-------|
 | **VCC** | 3.3 V | — | Power |
 | **GND** | GND | — | Ground |
 | **CS** | GPIO 5 | **P29** | SD Card Chip Select |
@@ -110,6 +113,7 @@ The PCB v1.1 is wired for a **4″ ST7796 SPI TFT with capacitive touch**, shari
 Unused GPIOs are exposed via an **Expansion Header** for future peripherals (encoders, buttons, sensors, GPIO).
 
 | Expansion | ESP32 GPIO | ESP32 Pin # | Notes |
+|-----------|------------|-------------|-------|
 | **3.3V** | 3.3 V | — | Power Output |
 | **GND** | GND | — | Ground |
 | **SDA** | GPIO 21 | **P33** | I²C SDA (shared with Touch) |
